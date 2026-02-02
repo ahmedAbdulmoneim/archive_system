@@ -1,8 +1,11 @@
+import 'package:archive_system/feautres/login/login_page.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'core/theme/app_theme.dart';
-import 'feautres/dashboard/dashboard_page.dart';
-import 'feautres/login/login_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'bloc/auth/auth_cubit.dart';
+import 'bloc/auth/auth_state.dart';
+import 'bloc/documents/documents_cubit.dart';
+import 'screens/documents_screen.dart';
 
 class ArchiveApp extends StatelessWidget {
   const ArchiveApp({super.key});
@@ -11,20 +14,23 @@ class ArchiveApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'نظام الأرشفة',
-      theme: AppTheme.lightTheme,
-      locale: const Locale('ar'),
-      supportedLocales: const [Locale('ar')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      initialRoute: '/login',
-      routes: {
-        '/login': (_) => const LoginPage(),
-        '/dashboard': (_) => const DashboardPage(),
-      },
+      home: BlocBuilder<AuthCubit, AuthState>(
+        builder: (context, state) {
+          if (state is AuthAuthenticated) {
+            return BlocProvider(
+              create: (_) => DocumentsCubit()..fetchDocuments(),
+              child: const DocumentsScreen(),
+            );
+          }
+
+          if (state is AuthLoading) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return  const LoginPage();
+        },
+      ),
     );
   }
 }

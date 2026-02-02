@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../bloc/auth/auth_cubit.dart';
 import '../../core/responsive/responsive_layout.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -14,10 +16,11 @@ class DashboardPage extends StatelessWidget {
           IconButton(
             tooltip: 'تسجيل الخروج',
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+            onPressed: () {
+              context.read<AuthCubit>().logout();
               Navigator.of(context).pushReplacementNamed('/login');
             },
+
           ),
         ],
       ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../bloc/auth/auth_cubit.dart';
+import '../../bloc/auth/auth_state.dart';
 import '../../core/responsive/responsive_layout.dart';
 
 class LoginPage extends StatefulWidget {
@@ -116,15 +119,39 @@ class _LoginPageState extends State<LoginPage> {
 
           const SizedBox(height: 24),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _login,
-              child: _loading
-                  ? const CircularProgressIndicator()
-                  : const Text('دخول'),
-            ),
+          BlocConsumer<AuthCubit, AuthState>(
+            listener: (context, state) {
+              if (state is AuthAuthenticated) {
+                Navigator.of(context).pushReplacementNamed('/dashboard');
+              }
+              if (state is AuthUnauthenticated && state.message != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message!)),
+                );
+              }
+            },
+            builder: (context, state) {
+              final loading = state is AuthLoading;
+
+              return SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: loading
+                      ? null
+                      : () {
+                    context.read<AuthCubit>().login(
+                      _emailController.text,
+                      _passwordController.text,
+                    );
+                  },
+                  child: loading
+                      ? const CircularProgressIndicator()
+                      : const Text('دخول'),
+                ),
+              );
+            },
           ),
+
         ],
       ),
     );
