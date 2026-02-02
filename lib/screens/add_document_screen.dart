@@ -1,3 +1,4 @@
+import 'package:archive_system/bloc/documents/documents_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -78,10 +79,43 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.document == null ? 'إضافة وثيقة' : 'تعديل وثيقة',
-        ),
+        title: const Text('Documents'),
+        actions: [
+          BlocBuilder<DocumentsCubit, DocumentsState>(
+            builder: (context, state) {
+              final cubit = context.read<DocumentsCubit>();
+              if (!cubit.hasSelection) return const SizedBox();
+
+              return IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('حذف'),
+                      content: const Text('هل تريد حذف العناصر المحددة؟'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('إلغاء'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            cubit.deleteSelected();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('حذف'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(

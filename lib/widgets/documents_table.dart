@@ -3,22 +3,25 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../bloc/documents/documents_cubit.dart';
+import '../bloc/documents/documents_state.dart';
 import '../models/documents_model.dart';
 import '../screens/add_document_screen.dart';
 
 class DocumentsTable extends StatelessWidget {
   final List<DocumentModel> documents;
-  final DocumentsCubit cubit;
-  String safe(String? v) => v == null || v.isEmpty ? '' : v;
 
   const DocumentsTable({
     super.key,
     required this.documents,
-    required this.cubit,
   });
+
+
+  String safe(String? v) => v == null || v.isEmpty ? '' : v;
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<DocumentsCubit>();
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
@@ -26,37 +29,65 @@ class DocumentsTable extends StatelessWidget {
         headingRowColor:
         MaterialStateProperty.all(Colors.grey.shade200),
 
-        columns: const [
-          DataColumn(label: Text('✔')),
-          DataColumn(label: Text('الصنف')),
-          DataColumn(label: Text('الرقم')),
-          DataColumn(label: Text('التاريخ')),
-          DataColumn(label: Text('صادر من')),
-          DataColumn(label: Text('وارد إلى')),
-          DataColumn(label: Text('الموضوع')),
-          DataColumn(label: Text('كلمات دلالية')),
-          DataColumn(label: Text('ملاحظات')),
-          DataColumn(label: Text('مرفقات')),
+        // ================= HEADER =================
+        columns: [
+          DataColumn(
+            label: BlocBuilder<DocumentsCubit, DocumentsState>(
+              builder: (context, state) {
+                final allSelected =
+                    cubit.selectedCount == documents.length &&
+                        documents.isNotEmpty;
+
+                return Checkbox(
+                  value: allSelected,
+                  onChanged: (v) {
+                    cubit.toggleSelectAll(v ?? false);
+                  },
+                );
+              },
+            ),
+          ),
+          const DataColumn(label: Text('الصنف')),
+          const DataColumn(label: Text('الرقم')),
+          const DataColumn(label: Text('التاريخ')),
+          const DataColumn(label: Text('صادر من')),
+          const DataColumn(label: Text('وارد إلى')),
+          const DataColumn(label: Text('الموضوع')),
+          const DataColumn(label: Text('كلمات دلالية')),
+          const DataColumn(label: Text('ملاحظات')),
+          const DataColumn(label: Text('مرفقات')),
         ],
 
+        // ================= ROWS =================
         rows: documents.map((doc) {
+          final isSelected = cubit.isSelected(doc.id);
+
           return DataRow(
+            selected: isSelected,
             onSelectChanged: (_) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
+                  builder: (context) => BlocProvider.value(
                     value: cubit,
                     child: AddDocumentScreen(document: doc),
                   ),
                 ),
               );
             },
-
             cells: [
-              DataCell(Checkbox(value: false, onChanged: (_) {})),
-              DataCell(Text(doc.categoryName)),
-              DataCell(Text(doc.number)),
+              // ✅ SINGLE CHECKBOX
+              DataCell(
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (_) {
+                    cubit.toggleSelection(doc.id);
+                  },
+                ),
+              ),
+
+              DataCell(Text(safe(doc.categoryName))),
+              DataCell(Text(safe(doc.number))),
               DataCell(
                 Text(
                   doc.date == null
@@ -65,18 +96,17 @@ class DocumentsTable extends StatelessWidget {
                 ),
               ),
               DataCell(Text(safe(doc.from))),
-
               DataCell(Text(safe(doc.to))),
-
               DataCell(Text(safe(doc.subject))),
-              DataCell(Text(
-                  doc.keywords.isEmpty ? '' : doc.keywords.join(', '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              DataCell(
+                Text(
+                  doc.keywords.isEmpty
+                      ? ''
+                      : doc.keywords.join(', '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              ),
-
-
               DataCell(
                 Text(
                   safe(doc.notes),

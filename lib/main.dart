@@ -5,21 +5,38 @@ import 'package:intl/date_symbol_data_local.dart';
 
 
 import 'bloc/auth/auth_cubit.dart';
+import 'bloc/documents/documents_cubit.dart';
 import 'firebase_options.dart';
 import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ar');
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.web,
   );
 
-  runApp(
-    BlocProvider<AuthCubit>(
-      create: (_) => AuthCubit()..checkAuthStatus(),
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        // ✅ AUTH CUBIT (GLOBAL)
+        BlocProvider<AuthCubit>(
+          create: (_) => AuthCubit()..checkAuthStatus(),
+        ),
+
+        // ✅ DOCUMENTS CUBIT (GLOBAL)
+        BlocProvider<DocumentsCubit>(
+          create: (_) => DocumentsCubit()..fetchDocuments(),
+        ),
+      ],
       child: const ArchiveApp(),
-    ),
-  );
+    );
+  }
 }

@@ -13,7 +13,45 @@ class DocumentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Documents')),
+      appBar: AppBar(
+        title: const Text('Documents'),
+        actions: [
+          BlocBuilder<DocumentsCubit, DocumentsState>(
+            builder: (context, state) {
+              final cubit = context.read<DocumentsCubit>();
+
+              if (!cubit.hasSelection) return const SizedBox();
+
+              return IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('حذف'),
+                      content: const Text('هل تريد حذف العناصر المحددة؟'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('إلغاء'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            cubit.deleteSelected();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('حذف'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+
 
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -60,7 +98,7 @@ class DocumentsScreen extends StatelessWidget {
                 Expanded(
                   child: DocumentsTable(
                     documents: state.documents,
-                    cubit: context.read<DocumentsCubit>(),
+
                   ),
                 ),
               ],

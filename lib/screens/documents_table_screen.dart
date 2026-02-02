@@ -35,7 +35,7 @@ class DocumentsTableScreen extends StatelessWidget {
           }
 
           if (state is DocumentsLoaded) {
-            return DocumentsTable(documents: state.documents, cubit: context.read<DocumentsCubit>()
+            return DocumentsTable(documents: state.documents
           ,);
           }
 

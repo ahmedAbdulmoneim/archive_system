@@ -10,6 +10,8 @@ class DocumentsCubit extends Cubit<DocumentsState> {
   List<DocumentModel> _allDocuments = [];
   String? _sortField;
   bool _ascending = true;
+  final Set<String> _selectedIds = {};
+
 
   DocumentsCubit() : super(DocumentsInitial());
 
@@ -26,6 +28,8 @@ class DocumentsCubit extends Cubit<DocumentsState> {
       _allDocuments = snapshot.docs
           .map((e) => DocumentModel.fromMap(e.data(), e.id))
           .toList();
+
+      _selectedIds.clear(); // ✅ ADD THIS
 
       emit(DocumentsLoaded(_allDocuments));
     } catch (e) {
@@ -114,4 +118,52 @@ class DocumentsCubit extends Cubit<DocumentsState> {
 
     emit(DocumentsLoaded(sorted));
   }
+  Future<void> deleteSelected() async {
+    final batch = _firestore.batch();
+
+    for (final id in _selectedIds) {
+      final ref = _firestore.collection('documents').doc(id);
+      batch.delete(ref);
+    }
+
+    await batch.commit();
+
+    _selectedIds.clear();
+    await fetchDocuments();
+  }
+// ================= SELECTION =================
+
+  bool isSelected(String id) => _selectedIds.contains(id);
+
+  int get selectedCount => _selectedIds.length;
+
+  void toggleSelection(String id) {
+    if (_selectedIds.contains(id)) {
+      _selectedIds.remove(id);
+    } else {
+      _selectedIds.add(id);
+    }
+    emit(DocumentsLoaded(List.of(_allDocuments)));
+  }
+
+  void toggleSelectAll(bool selectAll) {
+    if (selectAll) {
+      _selectedIds
+        ..clear()
+        ..addAll(_allDocuments.map((e) => e.id));
+    } else {
+      _selectedIds.clear();
+    }
+    emit(DocumentsLoaded(List.of(_allDocuments)));
+  }
+
+  void clearSelection() {
+    _selectedIds.clear();
+    emit(DocumentsLoaded(List.of(_allDocuments)));
+  }
+
+
+
+  bool get hasSelection => _selectedIds.isNotEmpty;
+
 }
