@@ -6,13 +6,19 @@ import '../bloc/documents/documents_cubit.dart';
 import '../models/documents_model.dart';
 
 class AddDocumentScreen extends StatefulWidget {
-  const AddDocumentScreen({super.key});
+  final DocumentModel? document;
+
+  const AddDocumentScreen({
+    super.key,
+    this.document,
+  });
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
 }
 
 class _AddDocumentScreenState extends State<AddDocumentScreen> {
+  // ---------------- FORM & CONTROLLERS ----------------
   final _formKey = GlobalKey<FormState>();
 
   final _numberController = TextEditingController();
@@ -25,24 +31,66 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   DateTime? _selectedDate;
   String _categoryName = 'غير مصنف';
+  List<String> _attachments = [];
 
+  // ---------------- INIT (FOR EDIT) ----------------
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.document != null) {
+      final doc = widget.document!;
+
+      _numberController.text = doc.number;
+      _fromController.text = doc.from;
+      _toController.text = doc.to;
+      _subjectController.text = doc.subject;
+      _notesController.text = doc.notes;
+      _paperArchiveController.text = doc.paperArchive;
+      _keywordsController.text = doc.keywords.join(', ');
+      _selectedDate = doc.date;
+
+      // ✅ FIX CATEGORY SAFELY
+      const allowedCategories = ['غير مصنف', 'وارد', 'صادر'];
+      _categoryName = allowedCategories.contains(doc.categoryName)
+          ? doc.categoryName
+          : 'غير مصنف';
+    }
+  }
+
+
+
+  // ---------------- DISPOSE ----------------
+  @override
+  void dispose() {
+    _numberController.dispose();
+    _fromController.dispose();
+    _toController.dispose();
+    _subjectController.dispose();
+    _notesController.dispose();
+    _paperArchiveController.dispose();
+    _keywordsController.dispose();
+    super.dispose();
+  }
+
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إضافة وثيقة'),
+        title: Text(
+          widget.document == null ? 'إضافة وثيقة' : 'تعديل وثيقة',
+        ),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-
-              /// CATEGORY
+              // CATEGORY
               DropdownButtonFormField<String>(
-                value: _categoryName,
+                value: _categoryName.isEmpty ? 'غير مصنف' : _categoryName,
                 decoration: const InputDecoration(labelText: 'الصنف'),
                 items: const [
                   DropdownMenuItem(value: 'غير مصنف', child: Text('غير مصنف')),
@@ -51,6 +99,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 ],
                 onChanged: (v) => setState(() => _categoryName = v!),
               ),
+
 
               const SizedBox(height: 12),
 
@@ -78,7 +127,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
               const SizedBox(height: 24),
 
-              /// SAVE BUTTON
+              // SAVE BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -122,7 +171,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         onTap: () async {
           final picked = await showDatePicker(
             context: context,
-            initialDate: DateTime.now(),
+            initialDate: _selectedDate ?? DateTime.now(),
             firstDate: DateTime(2000),
             lastDate: DateTime(2100),
           );
@@ -145,6 +194,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     );
   }
 
+  // ---------------- SAVE ----------------
+
   void _saveDocument() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -154,22 +205,28 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         .where((e) => e.isNotEmpty)
         .toList();
 
-    context.read<DocumentsCubit>().addDocument(
-      DocumentModel(
-        id: '',
-        categoryName: _categoryName,
-        number: _numberController.text,
-        date: _selectedDate,
-        from: _fromController.text,
-        to: _toController.text,
-        subject: _subjectController.text,
-        keywords: keywords,
-        notes: _notesController.text,
-        paperArchive: _paperArchiveController.text,
-        createdBy: 'admin', // later from auth
-      ),
+    final doc = DocumentModel(
+      id: widget.document?.id ?? '',
+      categoryName: _categoryName,
+      number: _numberController.text,
+      date: _selectedDate,
+      from: _fromController.text,
+      to: _toController.text,
+      subject: _subjectController.text,
+      keywords: keywords,
+      notes: _notesController.text,
+      paperArchive: _paperArchiveController.text,
+      attachments: _attachments,
+      createdBy: widget.document?.createdBy ?? 'admin',
     );
+
+    if (widget.document == null) {
+      context.read<DocumentsCubit>().addDocument(doc);
+    } else {
+      context.read<DocumentsCubit>().updateDocument(doc);
+    }
 
     Navigator.pop(context);
   }
+
 }

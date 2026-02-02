@@ -11,10 +11,9 @@ class DocumentsCubit extends Cubit<DocumentsState> {
   String? _sortField;
   bool _ascending = true;
 
-
   DocumentsCubit() : super(DocumentsInitial());
 
-  // 1️⃣ Fetch documents
+  // ================= FETCH =================
   Future<void> fetchDocuments() async {
     emit(DocumentsLoading());
 
@@ -34,7 +33,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     }
   }
 
-  // 2️⃣ Search documents
+  // ================= SEARCH =================
   void search(String query) {
     if (query.isEmpty) {
       emit(DocumentsLoaded(_allDocuments));
@@ -47,45 +46,45 @@ class DocumentsCubit extends Cubit<DocumentsState> {
       return doc.categoryName.toLowerCase().contains(lower) ||
           doc.from.toLowerCase().contains(lower) ||
           doc.number.toLowerCase().contains(lower) ||
-          doc.notes.toLowerCase().contains(lower);
+          doc.notes.toLowerCase().contains(lower) ||
+          doc.subject.toLowerCase().contains(lower);
     }).toList();
 
     emit(DocumentsLoaded(filtered));
   }
 
-  // 3️⃣ Add document  ✅ THIS FIXES YOUR ERROR
+  // ================= ADD =================
   Future<void> addDocument(DocumentModel doc) async {
-    await FirebaseFirestore.instance.collection('documents').add({
-      'categoryName': doc.categoryName,
-      'number': doc.number,
-      'date': doc.date,
-      'from': doc.from,
-      'to': doc.to,
-      'subject': doc.subject,
-      'keywords': doc.keywords,
-      'notes': doc.notes,
-      'paperArchive': doc.paperArchive,
-      'status': 'active',
-      'createdBy': doc.createdBy,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    fetchDocuments(); // refresh list
+    try {
+      await _firestore.collection('documents').add(doc.toMap());
+      await fetchDocuments();
+    } catch (e) {
+      emit(DocumentsError(e.toString()));
+    }
   }
 
+  // ================= UPDATE =================
+  Future<void> updateDocument(DocumentModel doc) async {
+    await _firestore
+        .collection('documents')
+        .doc(doc.id)
+        .update(doc.toMap());
+
+    await fetchDocuments();
+  }
+
+  // ================= SORT =================
   void sortDocuments(String field) {
     if (state is! DocumentsLoaded) return;
 
-    final current = (state as DocumentsLoaded).documents;
-
     if (_sortField == field) {
-      _ascending = !_ascending; // toggle
+      _ascending = !_ascending;
     } else {
       _sortField = field;
       _ascending = true;
     }
 
-    final sorted = List.of(current)..sort((a, b) {
+    final sorted = List<DocumentModel>.from(_allDocuments)..sort((a, b) {
       dynamic aValue;
       dynamic bValue;
 
@@ -115,5 +114,4 @@ class DocumentsCubit extends Cubit<DocumentsState> {
 
     emit(DocumentsLoaded(sorted));
   }
-
 }

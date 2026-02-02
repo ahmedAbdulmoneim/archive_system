@@ -60,6 +60,7 @@ class DocumentsScreen extends StatelessWidget {
                 Expanded(
                   child: DocumentsTable(
                     documents: state.documents,
+                    cubit: context.read<DocumentsCubit>(),
                   ),
                 ),
               ],
