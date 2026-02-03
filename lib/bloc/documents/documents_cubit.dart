@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/documents_model.dart';
+import '../../services/audit_service.dart';
 import 'documents_state.dart';
 
 class DocumentsCubit extends Cubit<DocumentsState> {
@@ -61,6 +62,11 @@ class DocumentsCubit extends Cubit<DocumentsState> {
   Future<void> addDocument(DocumentModel doc) async {
     try {
       await _firestore.collection('documents').add(doc.toMap());
+      await AuditService.log(
+        action: 'add_document',
+        entity: 'document',
+        description: 'تم إضافة وثيقة جديدة',
+      );
       await fetchDocuments();
     } catch (e) {
       emit(DocumentsError(e.toString()));
@@ -73,6 +79,12 @@ class DocumentsCubit extends Cubit<DocumentsState> {
         .collection('documents')
         .doc(doc.id)
         .update(doc.toMap());
+    await AuditService.log(
+      action: 'update_document',
+      entity: 'document',
+      entityId: doc.id,
+      description: 'تم تعديل وثيقة',
+    );
 
     await fetchDocuments();
   }
@@ -118,11 +130,18 @@ class DocumentsCubit extends Cubit<DocumentsState> {
 
     emit(DocumentsLoaded(sorted));
   }
+  //=================== Delete ===============
   Future<void> deleteSelected() async {
     final batch = _firestore.batch();
 
     for (final id in _selectedIds) {
       final ref = _firestore.collection('documents').doc(id);
+      await AuditService.log(
+        action: 'delete_document',
+        entity: 'document',
+        entityId: id,
+        description: 'تم حذف وثيقة',
+      );
       batch.delete(ref);
     }
 

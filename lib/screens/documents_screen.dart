@@ -64,6 +64,39 @@ class DocumentsScreen extends StatelessWidget {
               return const SizedBox();
             },
           ),
+          BlocBuilder<DocumentsCubit, DocumentsState>(
+            builder: (context, state) {
+              final cubit = context.read<DocumentsCubit>();
+
+              if (!cubit.hasSelection) return const SizedBox();
+
+              return IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('حذف'),
+                      content: const Text('هل تريد حذف العناصر المحددة؟'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('إلغاء'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            cubit.deleteSelected();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('حذف'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
 
