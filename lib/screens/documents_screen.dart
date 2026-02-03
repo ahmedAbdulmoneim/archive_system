@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../bloc/auth/auth_cubit.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
 import '../widgets/documents_table.dart';
@@ -16,41 +17,35 @@ class DocumentsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Documents'),
         actions: [
-          BlocBuilder<DocumentsCubit, DocumentsState>(
-            builder: (context, state) {
-              final cubit = context.read<DocumentsCubit>();
-
-              if (!cubit.hasSelection) return const SizedBox();
-
-              return IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('حذف'),
-                      content: const Text('هل تريد حذف العناصر المحددة؟'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('إلغاء'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            cubit.deleteSelected();
-                            Navigator.pop(context);
-                          },
-                          child: const Text('حذف'),
-                        ),
-                      ],
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'تسجيل الخروج',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('تسجيل الخروج'),
+                  content: const Text('هل تريد تسجيل الخروج؟'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('إلغاء'),
                     ),
-                  );
-                },
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<AuthCubit>().logout();
+                        Navigator.pop(context);
+                      },
+                      child: const Text('خروج'),
+                    ),
+                  ],
+                ),
               );
             },
           ),
         ],
       ),
+
 
 
       floatingActionButton: FloatingActionButton(

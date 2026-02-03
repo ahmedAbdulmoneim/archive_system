@@ -29,3 +29,7 @@ class AuthUnauthenticated extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+class AuthError extends AuthState {
+  final String message;
+  AuthError(this.message);
+}

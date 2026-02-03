@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/auth/auth_cubit.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
 import '../widgets/documents_table.dart';
@@ -11,7 +12,39 @@ class DocumentsTableScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Documents')),
+      appBar: AppBar(
+        title: const Text('Documents'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'تسجيل الخروج',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('تسجيل الخروج'),
+                  content: const Text('هل تريد تسجيل الخروج؟'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('إلغاء'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        dialogContext.read<AuthCubit>().logout();
+                        Navigator.pop(dialogContext);
+                      },
+                      child: const Text('خروج'),
+                    ),
+                  ],
+                ),
+              );
+            },
+
+          ),
+        ],
+      ),
+
 
       floatingActionButton: FloatingActionButton(
         onPressed: () {
