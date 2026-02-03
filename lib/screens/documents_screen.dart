@@ -7,6 +7,8 @@ import '../bloc/auth/auth_cubit.dart';
 import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
+import '../services/excel_export_service.dart';
+import '../services/pdf_export_service.dart';
 import '../widgets/documents_table.dart';
 import 'add_document_screen.dart';
 import 'dashboard_screen.dart';
@@ -117,6 +119,44 @@ class DocumentsScreen extends StatelessWidget {
               return const SizedBox();
             },
           ),
+          BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, state) {
+              if (state is AuthAuthenticated && state.role == 'admin') {
+                return IconButton(
+                  icon: const Icon(Icons.picture_as_pdf),
+                  tooltip: 'Export PDF',
+                  onPressed: () {
+                    final docs =
+                        (context.read<DocumentsCubit>().state as DocumentsLoaded)
+                            .documents;
+                    PdfExportService.exportDocuments(docs);
+                  },
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+          BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, state) {
+              if (state is AuthAuthenticated && state.role == 'admin') {
+                return IconButton(
+                  icon: const Icon(Icons.table_view),
+                  tooltip: 'Export Excel',
+                  onPressed: () {
+                    final docs =
+                        (context.read<DocumentsCubit>().state as DocumentsLoaded)
+                            .documents;
+
+                    ExcelExportService.exportDocuments(docs);
+                  },
+                );
+
+            }
+              return const SizedBox();
+            },
+          ),
+
+
         ],
       ),
 
