@@ -9,6 +9,7 @@ import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
 import '../widgets/documents_table.dart';
 import 'add_document_screen.dart';
+import 'dashboard_screen.dart';
 
 class DocumentsScreen extends StatelessWidget {
   const DocumentsScreen({super.key});
@@ -95,6 +96,25 @@ class DocumentsScreen extends StatelessWidget {
                   );
                 },
               );
+            },
+          ),
+          BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, state) {
+              if (state is AuthAuthenticated && state.role == 'admin') {
+                return IconButton(
+                  icon: const Icon(Icons.dashboard),
+                  tooltip: 'Dashboard',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DashboardScreen(),
+                      ),
+                    );
+                  },
+                );
+              }
+              return const SizedBox();
             },
           ),
         ],
