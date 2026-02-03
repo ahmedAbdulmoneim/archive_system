@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth/auth_cubit.dart';
+import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
 import '../widgets/documents_table.dart';
@@ -48,20 +49,28 @@ class DocumentsScreen extends StatelessWidget {
 
 
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<DocumentsCubit>(),
-                child: const AddDocumentScreen(),
-              ),
-            ),
-          );
+      floatingActionButton: BlocBuilder<AuthCubit, AuthState>(
+        builder: (context, state) {
+          if (state is AuthAuthenticated && state.role == 'admin') {
+            return FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<DocumentsCubit>(),
+                      child: const AddDocumentScreen(),
+                    ),
+                  ),
+                );
+              },
+              child: const Icon(Icons.add),
+            );
+          }
+          return const SizedBox(); // user لا يرى الزر
         },
-        child: const Icon(Icons.add),
       ),
+
 
       body: BlocBuilder<DocumentsCubit, DocumentsState>(
         builder: (context, state) {

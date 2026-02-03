@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../bloc/auth/auth_cubit.dart';
+import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
 import '../models/documents_model.dart';
@@ -65,16 +67,21 @@ class DocumentsTable extends StatelessWidget {
           return DataRow(
             selected: isSelected,
             onSelectChanged: (_) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BlocProvider.value(
-                    value: cubit,
-                    child: AddDocumentScreen(document: doc),
+              final auth = context.read<AuthCubit>().state;
+
+              if (auth is AuthAuthenticated && auth.role == 'admin') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<DocumentsCubit>(),
+                      child: AddDocumentScreen(document: doc),
+                    ),
                   ),
-                ),
-              );
+                );
+              }
             },
+
             cells: [
               // ✅ SINGLE CHECKBOX
               DataCell(
