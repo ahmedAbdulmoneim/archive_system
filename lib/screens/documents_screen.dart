@@ -1,3 +1,4 @@
+import 'package:archive_system/screens/users/users_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -42,6 +43,25 @@ class DocumentsScreen extends StatelessWidget {
                   ],
                 ),
               );
+            },
+          ),
+          BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, state) {
+              if (state is AuthAuthenticated && state.role == 'admin') {
+                return IconButton(
+                  icon: const Icon(Icons.people),
+                  tooltip: 'إدارة المستخدمين',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const UsersScreen(),
+                      ),
+                    );
+                  },
+                );
+              }
+              return const SizedBox();
             },
           ),
         ],
