@@ -12,6 +12,9 @@ class PdfExportService {
     final font = await PdfGoogleFonts.cairoRegular();
     final boldFont = await PdfGoogleFonts.cairoBold();
 
+    final today =
+        DateTime.now().toIso8601String().split('T').first;
+    final logo = await imageFromAssetBundle('assets/logo.jpg');
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4.landscape,
@@ -20,7 +23,53 @@ class PdfExportService {
           base: font,
           bold: boldFont,
         ),
-        margin: const pw.EdgeInsets.all(16),
+        margin: const pw.EdgeInsets.fromLTRB(24, 32, 24, 32),
+
+        // ================= HEADER =================
+        header: (context) {
+          return pw.Column(
+            children: [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Row(
+                    children: [
+                      pw.Image(logo, width: 40),
+                      pw.SizedBox(width: 8),
+                      pw.Text(
+                        'نظام أرشفة الوثائق',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Text(
+                    'التاريخ: $today',
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
+                ],
+              ),
+              pw.Divider(),
+            ],
+          );
+        },
+
+
+        // ================= FOOTER =================
+        footer: (context) {
+          return pw.Container(
+            alignment: pw.Alignment.center,
+            child: pw.Text(
+              'صفحة ${context.pageNumber} من ${context.pagesCount}',
+              style: const pw.TextStyle(fontSize: 9),
+            ),
+          );
+        },
+
+        // ================= BODY =================
         build: (context) => [
           pw.Text(
             'أرشيف الوثائق',
