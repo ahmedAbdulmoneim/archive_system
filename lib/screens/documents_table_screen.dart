@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth/auth_cubit.dart';
+import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
+import '../core/permissions.dart';
 import '../widgets/documents_table.dart';
 import 'add_document_screen.dart';
 
@@ -46,19 +48,27 @@ class DocumentsTableScreen extends StatelessWidget {
       ),
 
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<DocumentsCubit>(),
-                child: const AddDocumentScreen(),
-              ),
-            ),
+      floatingActionButton: BlocBuilder<AuthCubit, AuthState>(
+        builder: (context, authState) {
+          if (!Permissions.isAdmin(authState)) {
+            return const SizedBox(); // ❌ user لا يرى الزر
+          }
+
+          return FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: context.read<DocumentsCubit>(),
+                    child: const AddDocumentScreen(),
+                  ),
+                ),
+              );
+            },
+            child: const Icon(Icons.add),
           );
         },
-        child: const Icon(Icons.add),
       ),
 
       body: BlocBuilder<DocumentsCubit, DocumentsState>(

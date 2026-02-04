@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -8,25 +9,30 @@ class UsersCubit extends Cubit<List<Map<String, dynamic>>> {
 
   UsersCubit() : super([]);
 
+  // =========================
   // 🔹 Fetch all users
+  // =========================
   Future<void> fetchUsers() async {
     final snapshot = await _firestore.collection('users').get();
 
-    emit(snapshot.docs.map((e) {
-      return {
-        'id': e.id,
-        ...e.data(),
-      };
-    }).toList());
+    emit(
+      snapshot.docs.map((e) {
+        return {
+          'id': e.id,
+          ...e.data(),
+        };
+      }).toList(),
+    );
   }
 
-  // 🔹 Update user role (admin / user)
+  // =========================
+  // 🔹 Update user role
+  // =========================
   Future<void> updateRole(String uid, String role) async {
     await _firestore.collection('users').doc(uid).update({
       'role': role,
     });
 
-    // ✅ Audit log
     await AuditService.log(
       action: 'change_role',
       entity: 'user',
@@ -37,21 +43,35 @@ class UsersCubit extends Cubit<List<Map<String, dynamic>>> {
     fetchUsers();
   }
 
-  // 🔹 Enable / Disable user
-  Future<void> toggleActive(String uid, bool active) async {
-    await _firestore.collection('users').doc(uid).update({
-      'active': active,
-    });
 
-    // ✅ Audit log
+  // =========================
+  // 🔹 Enable / Disable user
+  // =========================
+  Future<void> toggleActive({
+    required String uid,
+    required bool active,
+    required String adminUid,
+  }) async {
+    // ❌ منع الأدمن من تعطيل نفسه
+    if (uid == adminUid) return;
+
+    final ref = _firestore.collection('users').doc(uid);
+
+    await ref.update({'active': active});
+
     await AuditService.log(
-      action: 'toggle_active',
+      action: active ? 'ENABLE_USER' : 'DISABLE_USER',
       entity: 'user',
       entityId: uid,
-      description:
-      active ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم',
+      description: active
+          ? 'تم تفعيل المستخدم'
+          : 'تم تعطيل المستخدم',
+      by: adminUid,
     );
 
-    fetchUsers();
+    await fetchUsers();
   }
+
+  // ====================== create user =============
+  Future<void> createUser({ required String email, required String password, required String role, required bool active, }) async { final callable = FirebaseFunctions.instance.httpsCallable('createUser'); await callable.call({ 'email': email, 'password': password, 'role': role, 'active': active, }); await fetchUsers(); }
 }

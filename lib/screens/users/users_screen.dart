@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../bloc/auth/auth_cubit.dart';
+import '../../bloc/auth/auth_state.dart';
 import '../../bloc/user/user_cubit.dart';
 
 class UsersScreen extends StatelessWidget {
@@ -7,6 +9,9 @@ class UsersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.read<AuthCubit>().state;
+    final currentAdminUid =
+    authState is AuthAuthenticated ? authState.user.uid : '';
     return BlocProvider(
       create: (_) => UsersCubit()..fetchUsers(),
       child: Scaffold(
@@ -33,27 +38,35 @@ class UsersScreen extends StatelessWidget {
                         DropdownButton<String>(
                           value: user['role'],
                           items: const [
-                            DropdownMenuItem(
-                                value: 'admin', child: Text('admin')),
-                            DropdownMenuItem(
-                                value: 'user', child: Text('user')),
+                            DropdownMenuItem(value: 'admin', child: Text('admin')),
+                            DropdownMenuItem(value: 'user', child: Text('user')),
                           ],
-                          onChanged: (v) {
-                            context
-                                .read<UsersCubit>()
-                                .updateRole(user['id'], v!);
+                          onChanged: user['id'] == currentAdminUid
+                              ? null // ❌ يمنع تعديل نفسه
+                              : (v) {
+                            context.read<UsersCubit>().updateRole(
+                              user['id'],
+                              v!,
+                            );
                           },
                         ),
+
 
                         // ⛔ Active
                         Switch(
                           value: user['active'] ?? false,
-                          onChanged: (v) {
-                            context
-                                .read<UsersCubit>()
-                                .toggleActive(user['id'], v);
+                          onChanged: user['id'] == currentAdminUid
+                              ? null // ❌ يمنع تعطيل نفسه
+                              : (v) {
+                            context.read<UsersCubit>().toggleActive(
+                              uid: user['id'],
+                              active: v,
+                              adminUid: currentAdminUid,
+                            );
                           },
                         ),
+
+
                       ],
                     ),
                   ),

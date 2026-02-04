@@ -6,6 +6,7 @@ import '../bloc/auth/auth_cubit.dart';
 import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
+import '../core/permissions.dart';
 import '../models/documents_model.dart';
 import '../screens/add_document_screen.dart';
 
@@ -23,6 +24,8 @@ class DocumentsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<DocumentsCubit>();
+    final authState = context.read<AuthCubit>().state;
+    final isAdmin = Permissions.isAdmin(authState);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -34,20 +37,7 @@ class DocumentsTable extends StatelessWidget {
         // ================= HEADER =================
         columns: [
           DataColumn(
-            label: BlocBuilder<DocumentsCubit, DocumentsState>(
-              builder: (context, state) {
-                final allSelected =
-                    cubit.selectedCount == documents.length &&
-                        documents.isNotEmpty;
-
-                return Checkbox(
-                  value: allSelected,
-                  onChanged: (v) {
-                    cubit.toggleSelectAll(v ?? false);
-                  },
-                );
-              },
-            ),
+            label: isAdmin ? const Text('✔') : const SizedBox(),
           ),
           const DataColumn(label: Text('الصنف')),
           const DataColumn(label: Text('الرقم')),
@@ -66,32 +56,33 @@ class DocumentsTable extends StatelessWidget {
 
           return DataRow(
             selected: isSelected,
-            onSelectChanged: (_) {
-              final auth = context.read<AuthCubit>().state;
-
-              if (auth is AuthAuthenticated && auth.role == 'admin') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BlocProvider.value(
-                      value: context.read<DocumentsCubit>(),
-                      child: AddDocumentScreen(document: doc),
-                    ),
+            onSelectChanged: Permissions.isAdmin(
+                context.read<AuthCubit>().state)
+                ? (_) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: cubit,
+                    child: AddDocumentScreen(document: doc),
                   ),
-                );
-              }
-            },
+                ),
+              );
+            }
+                : null,
+
 
             cells: [
               // ✅ SINGLE CHECKBOX
               DataCell(
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (_) {
-                    cubit.toggleSelection(doc.id);
-                  },
-                ),
+                isAdmin
+                    ? Checkbox(
+                  value: cubit.isSelected(doc.id),
+                  onChanged: (_) => cubit.toggleSelection(doc.id),
+                )
+                    : const SizedBox(),
               ),
+
 
               DataCell(Text(safe(doc.categoryName))),
               DataCell(Text(safe(doc.number))),

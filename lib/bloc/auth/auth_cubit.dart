@@ -11,7 +11,9 @@ class AuthCubit extends Cubit<AuthState> {
 
   AuthCubit() : super(AuthInitial());
 
+  // =========================
   // 🔹 Check auth on app start
+  // =========================
   Future<void> checkAuthStatus() async {
     final user = _auth.currentUser;
 
@@ -23,7 +25,9 @@ class AuthCubit extends Cubit<AuthState> {
     await _emitAuthenticated(user);
   }
 
+  // =========================
   // 🔹 Login
+  // =========================
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
 
@@ -33,11 +37,12 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
       );
 
-      // ✅ Audit log
       await AuditService.log(
-        action: 'login',
+        action: 'LOGIN',
         entity: 'auth',
+        entityId: cred.user!.uid,
         description: 'تسجيل دخول',
+        by: cred.user!.uid,
       );
 
       await _emitAuthenticated(cred.user!);
@@ -47,16 +52,19 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  // =========================
   // 🔹 Logout
+  // =========================
   Future<void> logout() async {
     final user = _auth.currentUser;
 
-    // ✅ Audit log قبل الخروج
     if (user != null) {
       await AuditService.log(
-        action: 'logout',
+        action: 'LOGOUT',
         entity: 'auth',
+        entityId: user.uid,
         description: 'تسجيل خروج',
+        by: user.uid,
       );
     }
 
@@ -65,26 +73,35 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthUnauthenticated());
   }
 
+  // =========================
   // 🔹 Load role + active safely
+  // =========================
   Future<void> _emitAuthenticated(User user) async {
     try {
       final doc =
       await _firestore.collection('users').doc(user.uid).get();
 
-      // fallback لو مفيش document
+      // لو مفيش user document → user عادي
       if (!doc.exists) {
-        emit(AuthAuthenticated(user));
+        emit(AuthAuthenticated(
+          user,
+          role: 'user',
+          active: true,
+        ));
         return;
       }
 
       final data = doc.data()!;
       final active = data['active'] ?? true;
+      final role = data['role'] ?? 'user';
 
       if (!active) {
         await AuditService.log(
-          action: 'blocked_login',
+          action: 'BLOCKED_LOGIN',
           entity: 'auth',
+          entityId: user.uid,
           description: 'محاولة دخول لحساب معطّل',
+          by: user.uid,
         );
 
         await _auth.signOut();
@@ -95,12 +112,16 @@ class AuthCubit extends Cubit<AuthState> {
 
       emit(AuthAuthenticated(
         user,
-        role: data['role'], // admin / user
+        role: role,
         active: active,
       ));
     } catch (e) {
       // fallback آمن
-      emit(AuthAuthenticated(user));
+      emit(AuthAuthenticated(
+        user,
+        role: 'user',
+        active: true,
+      ));
     }
   }
 }
