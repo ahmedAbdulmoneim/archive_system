@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/documents_model.dart';
+import '../models/attachment_model.dart';
 
 class DocumentDetailsScreen extends StatelessWidget {
   final DocumentModel document;
@@ -52,12 +53,28 @@ class DocumentDetailsScreen extends StatelessWidget {
                   : 'No notes',
               multiline: true,
             ),
+
+            const SizedBox(height: 24),
+
+            // ================= ATTACHMENTS =================
+            const Text(
+              'Attachments',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            _attachmentsList(document.attachments),
           ],
         ),
       ),
     );
   }
 
+  // ================= INFO CARD =================
   Widget _infoCard({
     required String title,
     required String value,
@@ -89,5 +106,50 @@ class DocumentDetailsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ================= ATTACHMENTS LIST =================
+  Widget _attachmentsList(List<AttachmentModel> attachments) {
+    if (attachments.isEmpty) {
+      return const Text(
+        'No attachments',
+        style: TextStyle(color: Colors.grey),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: attachments.length,
+      itemBuilder: (context, index) {
+        final att = attachments[index];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: _attachmentIcon(att.type),
+            title: Text(att.name, overflow: TextOverflow.ellipsis),
+            subtitle: Text(att.type),
+          ),
+        );
+      },
+    );
+  }
+
+  // ================= ICON BY TYPE =================
+  Widget _attachmentIcon(String type) {
+    final t = type.toLowerCase();
+
+    if (t.contains('pdf')) {
+      return const Icon(Icons.picture_as_pdf, color: Colors.red);
+    }
+    if (t.contains('jpg') || t.contains('png') || t.contains('jpeg')) {
+      return const Icon(Icons.image, color: Colors.blue);
+    }
+    if (t.contains('doc')) {
+      return const Icon(Icons.description, color: Colors.indigo);
+    }
+
+    return const Icon(Icons.attach_file);
   }
 }

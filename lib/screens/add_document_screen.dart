@@ -1,4 +1,6 @@
 import 'package:archive_system/bloc/documents/documents_state.dart';
+import 'package:archive_system/models/attachment_model.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -32,7 +34,28 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   DateTime? _selectedDate;
   String _categoryName = 'غير مصنف';
-  List<String> _attachments = [];
+  final List<AttachmentModel> _attachments = [];
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: false,
+    );
+
+    if (result == null) return;
+
+    for (final file in result.files) {
+      _attachments.add(
+        AttachmentModel(
+          name: file.name,
+          type: file.extension ?? 'file',
+          localPath: file.path, // مؤقت
+        ),
+      );
+    }
+
+    setState(() {});
+  }
+
 
   // ---------------- INIT (FOR EDIT) ----------------
   @override
@@ -91,22 +114,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('حذف'),
-                      content: const Text('هل تريد حذف العناصر المحددة؟'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('إلغاء'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            cubit.deleteSelected();
-                            Navigator.pop(context);
-                          },
-                          child: const Text('حذف'),
-                        ),
-                      ],
+                    builder: (_) => const AlertDialog(
+                      title: Text('حذف'),
+                      content: Text('هل تريد حذف العناصر المحددة؟'),
                     ),
                   );
                 },
@@ -158,6 +168,28 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 'الحفظ الورقي',
                 _paperArchiveController,
               ),
+
+              const SizedBox(height: 16),
+              // زر إضافة
+              //_addAttachmentButton(),
+
+              const SizedBox(height: 8),
+
+// عرض المرفقات
+              _attachmentsList(),
+
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.attach_file),
+                  label: const Text('إضافة مرفق'),
+                  onPressed: _pickAttachment,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+
 
               const SizedBox(height: 24),
 
@@ -227,7 +259,43 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       ),
     );
   }
+  Widget _attachmentsList() {
+    if (_attachments.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 12),
+        child: Text(
+          'لا توجد مرفقات',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
 
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _attachments.length,
+      itemBuilder: (context, index) {
+        final att = _attachments[index];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: _attachmentIcon(att.type),
+            title: Text(att.name, overflow: TextOverflow.ellipsis),
+            subtitle: Text(att.type),
+            trailing: IconButton(
+              icon: const Icon(Icons.close, color: Colors.red),
+              onPressed: () {
+                setState(() {
+                  _attachments.removeAt(index);
+                });
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
   // ---------------- SAVE ----------------
 
   void _saveDocument() {
@@ -264,3 +332,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   }
 
 }
+Widget _attachmentIcon(String type) {
+  final t = type.toLowerCase();
+
+  if (t.contains('pdf')) {
+    return const Icon(Icons.picture_as_pdf, color: Colors.red);
+  }
+  if (t.contains('jpg') || t.contains('png') || t.contains('jpeg')) {
+    return const Icon(Icons.image, color: Colors.blue);
+  }
+  if (t.contains('doc')) {
+    return const Icon(Icons.description, color: Colors.indigo);
+  }
+
+  return const Icon(Icons.attach_file);
+}
+

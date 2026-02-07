@@ -37,7 +37,12 @@ class DocumentsTable extends StatelessWidget {
         // ================= HEADER =================
         columns: [
           DataColumn(
-            label: isAdmin ? const Text('✔') : const SizedBox(),
+            label: Checkbox(
+              value: cubit.selectedCount == documents.length && documents.isNotEmpty,
+              onChanged: (v) {
+                cubit.toggleSelectAll(v ?? false);
+              },
+            ),
           ),
           const DataColumn(label: Text('الصنف')),
           const DataColumn(label: Text('الرقم')),
@@ -75,13 +80,12 @@ class DocumentsTable extends StatelessWidget {
             cells: [
               // ✅ SINGLE CHECKBOX
               DataCell(
-                isAdmin
-                    ? Checkbox(
+                Checkbox(
                   value: cubit.isSelected(doc.id),
                   onChanged: (_) => cubit.toggleSelection(doc.id),
-                )
-                    : const SizedBox(),
+                ),
               ),
+
 
 
               DataCell(Text(safe(doc.categoryName))),
@@ -113,12 +117,15 @@ class DocumentsTable extends StatelessWidget {
                 ),
               ),
               DataCell(
-                Row(
-                  children: [
-                    const Icon(Icons.attach_file, size: 16),
-                    const SizedBox(width: 4),
-                    Text('${doc.attachments.length}'),
-                  ],
+                Tooltip(
+                  message: 'عدد المرفقات: ${doc.attachments.length}',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.attach_file, size: 16),
+                      const SizedBox(width: 4),
+                      Text('${doc.attachments.length}'),
+                    ],
+                  ),
                 ),
               ),
             ],

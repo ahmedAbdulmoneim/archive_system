@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'attachment_model.dart';
+
 class DocumentModel {
   final String id;
   final String categoryName;
@@ -12,7 +14,7 @@ class DocumentModel {
   final String notes;
   final String paperArchive;
   final String createdBy;
-  final List<dynamic> attachments;
+  final List<AttachmentModel> attachments;
 
   DocumentModel({
     required this.id,
@@ -42,10 +44,12 @@ class DocumentModel {
       notes: map['notes'] ?? '',
       paperArchive: map['paperArchive'] ?? '',
       createdBy: map['createdBy'] ?? '',
-      attachments: map['attachments'] ?? [],
+      attachments: (map['attachments'] as List<dynamic>? ?? [])
+          .map((e) => AttachmentModel.fromMap(e))
+          .toList(),
     );
   }
-  // ---------------- TO FIRESTORE ----------------
+
   Map<String, dynamic> toMap() {
     return {
       'categoryName': categoryName,
@@ -55,10 +59,10 @@ class DocumentModel {
       'to': to,
       'subject': subject,
       'keywords': keywords,
-      'notes': notes,                           // ✅ HERE
+      'notes': notes,
       'paperArchive': paperArchive,
       'createdBy': createdBy,
-      'attachments': attachments,
+      'attachments': attachments.map((a) => a.toMap()).toList(),
       'createdAt': FieldValue.serverTimestamp(),
       'status': 'active',
     };
