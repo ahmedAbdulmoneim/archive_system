@@ -10,6 +10,7 @@ import '../bloc/documents/documents_state.dart';
 import '../services/excel_export_service.dart';
 import '../services/pdf_export_service.dart';
 import '../widgets/documents_table.dart';
+import 'account_screen.dart';
 import 'add_document_screen.dart';
 import 'dashboard_screen.dart';
 
@@ -22,32 +23,6 @@ class DocumentsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Documents'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('تسجيل الخروج'),
-                  content: const Text('هل تريد تسجيل الخروج؟'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('إلغاء'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.read<AuthCubit>().logout();
-                        Navigator.pop(context);
-                      },
-                      child: const Text('خروج'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
           BlocBuilder<AuthCubit, AuthState>(
             builder: (context, state) {
               if (state is AuthAuthenticated && state.role == 'admin') {
@@ -65,39 +40,6 @@ class DocumentsScreen extends StatelessWidget {
                 );
               }
               return const SizedBox();
-            },
-          ),
-          BlocBuilder<DocumentsCubit, DocumentsState>(
-            builder: (context, state) {
-              final cubit = context.read<DocumentsCubit>();
-
-              if (!cubit.hasSelection) return const SizedBox();
-
-              return IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('حذف'),
-                      content: const Text('هل تريد حذف العناصر المحددة؟'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('إلغاء'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            cubit.deleteSelected();
-                            Navigator.pop(context);
-                          },
-                          child: const Text('حذف'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
             },
           ),
           BlocBuilder<AuthCubit, AuthState>(
@@ -155,6 +97,52 @@ class DocumentsScreen extends StatelessWidget {
               return const SizedBox();
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'الحساب',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AccountScreen(),
+                ),
+              );
+            },
+          ),
+          BlocBuilder<DocumentsCubit, DocumentsState>(
+            builder: (context, state) {
+              final cubit = context.read<DocumentsCubit>();
+
+              if (!cubit.hasSelection) return const SizedBox();
+
+              return IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('حذف'),
+                      content: const Text('هل تريد حذف العناصر المحددة؟'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('إلغاء'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            cubit.deleteSelected();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('حذف'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+
 
 
         ],
