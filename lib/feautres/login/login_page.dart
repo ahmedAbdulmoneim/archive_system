@@ -13,11 +13,62 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   String? _error;
+
+  late AnimationController _controller;
+  late Animation<double> _imageFade;
+  late Animation<double> _formFade;
+  late Animation<Offset> _formSlide;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _imageFade = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+      ),
+    );
+
+    _formFade = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+      ),
+    );
+
+    _formSlide = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   // =========================
   // 🔹 Forgot Password Dialog
@@ -27,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('إعادة تعيين كلمة المرور'),
         content: TextField(
           controller: emailController,
@@ -54,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني',
+                      'تم إرسال رابط إعادة تعيين كلمة المرور',
                     ),
                   ),
                 );
@@ -74,9 +125,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // =========================
-  // 🔹 Firebase Error Mapping
-  // =========================
   String _firebaseError(String code) {
     switch (code) {
       case 'user-not-found':
@@ -91,10 +139,43 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ResponsiveLayout(
-        mobile: _form(double.infinity),
-        tablet: _form(420),
-        desktop: Center(child: _form(420)),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+
+          // =========================
+          // 🖼️ BACKGROUND IMAGE
+          // =========================
+          FadeTransition(
+            opacity: _imageFade,
+            child: Image.asset(
+              'assets/logo.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          // =========================
+          // 🌫️ OVERLAY
+          // =========================
+          Container(
+            color: Colors.black.withOpacity(0.45),
+          ),
+
+          // =========================
+          // 🔐 LOGIN FORM
+          // =========================
+          FadeTransition(
+            opacity: _formFade,
+            child: SlideTransition(
+              position: _formSlide,
+              child: ResponsiveLayout(
+                mobile: _form(double.infinity),
+                tablet: _form(420),
+                desktop: Center(child: _form(420)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -106,18 +187,25 @@ class _LoginPageState extends State<LoginPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+
           Text(
             'تسجيل الدخول',
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: Theme.of(context)
+                .textTheme
+                .headlineMedium
+                ?.copyWith(color: Colors.white),
           ),
+
           const SizedBox(height: 24),
 
           TextField(
             controller: _emailController,
             decoration: const InputDecoration(
               labelText: 'البريد الإلكتروني',
+              filled: true,
             ),
           ),
+
           const SizedBox(height: 16),
 
           TextField(
@@ -125,6 +213,7 @@ class _LoginPageState extends State<LoginPage> {
             obscureText: true,
             decoration: const InputDecoration(
               labelText: 'كلمة المرور',
+              filled: true,
             ),
           ),
 
@@ -140,10 +229,6 @@ class _LoginPageState extends State<LoginPage> {
 
           BlocConsumer<AuthCubit, AuthState>(
             listener: (context, state) {
-              if (state is AuthAuthenticated) {
-                Navigator.of(context)
-                    .pushReplacementNamed('/dashboard');
-              }
               if (state is AuthError) {
                 setState(() {
                   _error = state.message;
@@ -176,7 +261,10 @@ class _LoginPageState extends State<LoginPage> {
 
                   TextButton(
                     onPressed: _showForgotPasswordDialog,
-                    child: const Text('نسيت كلمة المرور؟'),
+                    child: const Text(
+                      'نسيت كلمة المرور؟',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               );
