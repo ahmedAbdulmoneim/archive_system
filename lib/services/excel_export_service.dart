@@ -21,6 +21,7 @@ class ExcelExportService {
       TextCellValue('الموضوع'),
       TextCellValue('كلمات دلالية'),
       TextCellValue('ملاحظات'),
+      TextCellValue('الحفظ الورقي'),
       TextCellValue('مرفقات'),
     ]);
 
@@ -39,6 +40,7 @@ class ExcelExportService {
         TextCellValue(d.subject),
         TextCellValue(d.keywords.join(', ')),
         TextCellValue(d.notes),
+        TextCellValue(d.paperArchive),
         TextCellValue(d.attachments.length.toString()),
       ]);
     }

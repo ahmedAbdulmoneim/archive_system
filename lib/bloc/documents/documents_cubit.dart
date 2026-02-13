@@ -52,6 +52,8 @@ class DocumentsCubit extends Cubit<DocumentsState> {
           doc.from.toLowerCase().contains(lower) ||
           doc.number.toLowerCase().contains(lower) ||
           doc.notes.toLowerCase().contains(lower) ||
+          doc.paperArchive.toLowerCase().contains(lower)||
+          doc.date.toString().contains(query)||
           doc.subject.toLowerCase().contains(lower);
     }).toList();
 

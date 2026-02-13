@@ -99,6 +99,7 @@ class PdfExportService {
               'الموضوع',
               'كلمات دلالية',
               'ملاحظات',
+              'الحفظ الورقي',
               'مرفقات',
             ],
             data: docs.map((d) {
@@ -113,6 +114,7 @@ class PdfExportService {
                 d.subject,
                 d.keywords.join(', '),
                 d.notes,
+                d.paperArchive,
                 d.attachments.length.toString(),
               ];
             }).toList(),

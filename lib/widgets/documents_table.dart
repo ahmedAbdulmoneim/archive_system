@@ -82,6 +82,7 @@ class _DocumentsTableState extends State<DocumentsTable> {
               _detailItem('وارد إلى', doc.to),
               _detailItem('الموضوع', doc.subject),
               _detailItem('الكلمات الدلالية', doc.keywords.join(', ')),
+              _detailItem('الحفظ الورقي', doc.paperArchive),
               _detailItem('ملاحظات', doc.notes),
               _detailItem('عدد المرفقات', '${doc.attachments.length}'),
               const SizedBox(height: 20),
@@ -170,6 +171,7 @@ class _DocumentsTableState extends State<DocumentsTable> {
           const DataColumn(label: Text('الموضوع')),
           const DataColumn(label: Text('كلمات دلالية')),
           const DataColumn(label: Text('ملاحظات')),
+          const DataColumn(label: Text('الحفظ الورقي')),
           const DataColumn(label: Text('مرفقات')),
           const DataColumn(label: Text('عرض')), // زر التفاصيل
         ],
@@ -253,6 +255,7 @@ class _DocumentsTableState extends State<DocumentsTable> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              DataCell(Text(safe(doc.paperArchive))),
               DataCell(
                 Row(
                   children: [
