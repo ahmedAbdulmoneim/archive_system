@@ -6,12 +6,14 @@ import '../bloc/auth/auth_cubit.dart';
 import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/documents/documents_state.dart';
+import '../bloc/types_cubit/types_cubit.dart';
 import '../services/excel_export_service.dart';
 import '../services/pdf_export_service.dart';
 import '../widgets/documents_table.dart';
 import 'account_screen.dart';
 import 'add_document_screen.dart';
 import 'dashboard_screen.dart';
+import 'manage_types_screen.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -239,6 +241,32 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                   );
                 },
               ),
+              // =========================
+// 🗂️ MANAGE TYPES (ADMIN)
+// =========================
+              BlocBuilder<AuthCubit, AuthState>(
+                builder: (context, state) {
+                  if (state is AuthAuthenticated && state.role == 'admin') {
+                    return IconButton(
+                      icon: const Icon(Icons.category),
+                      tooltip: 'إدارة الأنواع',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider.value(
+                              value: context.read<TypesCubit>(),
+                              child: const ManageTypesScreen(),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                  return const SizedBox();
+                },
+              ),
+
 
             ],
           ),

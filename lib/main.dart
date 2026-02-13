@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'bloc/auth/auth_cubit.dart';
 import 'bloc/documents/documents_cubit.dart';
+import 'bloc/types_cubit/types_cubit.dart';
 import 'firebase_options.dart';
 import 'app.dart';
 
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<DocumentsCubit>(
           create: (_) => DocumentsCubit()..fetchDocuments(),
         ),
+        BlocProvider(create: (_) => TypesCubit()..loadTypes()),
       ],
       child: const ArchiveApp(),
     );

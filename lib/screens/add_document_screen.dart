@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../bloc/documents/documents_cubit.dart';
+import '../bloc/types_cubit/types_cubit.dart';
 import '../models/documents_model.dart';
 
 class AddDocumentScreen extends StatefulWidget {
@@ -21,7 +22,6 @@ class AddDocumentScreen extends StatefulWidget {
 }
 
 class _AddDocumentScreenState extends State<AddDocumentScreen> {
-  // ---------------- FORM & CONTROLLERS ----------------
   final _formKey = GlobalKey<FormState>();
 
   final _numberController = TextEditingController();
@@ -33,8 +33,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   final _keywordsController = TextEditingController();
 
   DateTime? _selectedDate;
-  String _categoryName = 'غير مصنف';
+  String _categoryName = '';
   final List<AttachmentModel> _attachments = [];
+
   Future<void> _pickAttachment() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -48,7 +49,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         AttachmentModel(
           name: file.name,
           type: file.extension ?? 'file',
-          localPath: file.path, // مؤقت
+          localPath: file.path,
         ),
       );
     }
@@ -56,8 +57,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     setState(() {});
   }
 
-
-  // ---------------- INIT (FOR EDIT) ----------------
   @override
   void initState() {
     super.initState();
@@ -74,17 +73,10 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _keywordsController.text = doc.keywords.join(', ');
       _selectedDate = doc.date;
 
-      // ✅ FIX CATEGORY SAFELY
-      const allowedCategories = ['غير مصنف', 'وارد', 'صادر'];
-      _categoryName = allowedCategories.contains(doc.categoryName)
-          ? doc.categoryName
-          : 'غير مصنف';
+      _categoryName = doc.categoryName;
     }
   }
 
-
-
-  // ---------------- DISPOSE ----------------
   @override
   void dispose() {
     _numberController.dispose();
@@ -97,125 +89,126 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     super.dispose();
   }
 
-  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Documents'),
-        actions: [
-          BlocBuilder<DocumentsCubit, DocumentsState>(
-            builder: (context, state) {
-              final cubit = context.read<DocumentsCubit>();
-              if (!cubit.hasSelection) return const SizedBox();
+      appBar: AppBar(title: const Text('إضافة مستند')),
 
-              return IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => const AlertDialog(
-                      title: Text('حذف'),
-                      content: Text('هل تريد حذف العناصر المحددة؟'),
+      body: BlocBuilder<TypesCubit, TypesState>(
+        builder: (context, state) {
+          if (state is TypesLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final typesCubit = context.read<TypesCubit>();
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  // ---------------- الصنف ----------------
+                  DropdownButtonFormField<String>(
+                    value: typesCubit.categories.any((item) => item["name"] == _categoryName)
+                        ? _categoryName
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'الصنف',
+                      border: OutlineInputBorder(),
                     ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
-      ),
+                    items: typesCubit.categories
+                        .map(
+                          (item) => DropdownMenuItem<String>(
+                        value: item["name"] as String,
+                        child: Text(item["name"] as String),
+                      ),
+                    )
+                        .toList(),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // CATEGORY
-              DropdownButtonFormField<String>(
-                value: _categoryName.isEmpty ? 'غير مصنف' : _categoryName,
-                decoration: const InputDecoration(labelText: 'الصنف'),
-                items: const [
-                  DropdownMenuItem(value: 'غير مصنف', child: Text('غير مصنف')),
-                  DropdownMenuItem(value: 'وارد', child: Text('وارد')),
-                  DropdownMenuItem(value: 'صادر', child: Text('صادر')),
+                    onChanged: (v) => setState(() => _categoryName = v!),
+                    validator: (v) => v == null ? 'اختر الصنف' : null,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _textField('رقم الوثيقة', _numberController),
+                  _datePicker(context),
+                  _textField('صادر من', _fromController),
+                  _textField('وارد إلى', _toController),
+                  _textField('الموضوع', _subjectController),
+
+                  _textField(
+                    'كلمات دلالية (افصل بفاصلة)',
+                    _keywordsController,
+                  ),
+
+                  _textField(
+                    'ملاحظات',
+                    _notesController,
+                    maxLines: 3,
+                  ),
+
+                  // ---------------- الحفظ الورقي ----------------
+                  DropdownButtonFormField<String>(
+                    value: typesCubit.paperTypes.any(
+                            (item) => item["name"] == _paperArchiveController.text)
+                        ? _paperArchiveController.text
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'نوع الحفظ الورقي',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: typesCubit.paperTypes
+                        .map(
+                          (item) => DropdownMenuItem<String>(
+                        value: item["name"] as String,
+                        child: Text(item["name"] as String),
+                      ),
+                    )
+                        .toList(),
+
+                    onChanged: (v) {
+                      setState(() {
+                        _paperArchiveController.text = v!;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _attachmentsList(),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.attach_file),
+                      label: const Text('إضافة مرفق'),
+                      onPressed: _pickAttachment,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.save),
+                      label: const Text('حفظ الوثيقة'),
+                      onPressed: _saveDocument,
+                    ),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _categoryName = v!),
               ),
-
-
-              const SizedBox(height: 12),
-
-              _textField('رقم الوثيقة', _numberController),
-              _datePicker(context),
-              _textField('صادر من', _fromController),
-              _textField('وارد إلى', _toController),
-              _textField('الموضوع', _subjectController),
-
-              _textField(
-                'كلمات دلالية (افصل بفاصلة)',
-                _keywordsController,
-              ),
-
-              _textField(
-                'ملاحظات',
-                _notesController,
-                maxLines: 3,
-              ),
-
-              _textField(
-                'الحفظ الورقي',
-                _paperArchiveController,
-              ),
-
-              const SizedBox(height: 16),
-              // زر إضافة
-              //_addAttachmentButton(),
-
-              const SizedBox(height: 8),
-
-// عرض المرفقات
-              _attachmentsList(),
-
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.attach_file),
-                  label: const Text('إضافة مرفق'),
-                  onPressed: _pickAttachment,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-
-
-              const SizedBox(height: 24),
-
-              // SAVE BUTTON
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.save),
-                  label: const Text('حفظ الوثيقة'),
-                  onPressed: _saveDocument,
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  // ---------------- HELPERS ----------------
-
-  Widget _textField(
-      String label,
-      TextEditingController controller, {
-        int maxLines = 1,
-      }) {
+  Widget _textField(String label, TextEditingController controller,
+      {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -259,6 +252,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       ),
     );
   }
+
   Widget _attachmentsList() {
     if (_attachments.isEmpty) {
       return const Padding(
@@ -296,7 +290,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       },
     );
   }
-  // ---------------- SAVE ----------------
 
   void _saveDocument() {
     if (!_formKey.currentState!.validate()) return;
@@ -330,8 +323,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     Navigator.pop(context);
   }
-
 }
+
 Widget _attachmentIcon(String type) {
   final t = type.toLowerCase();
 
@@ -347,4 +340,3 @@ Widget _attachmentIcon(String type) {
 
   return const Icon(Icons.attach_file);
 }
-
