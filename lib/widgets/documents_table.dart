@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../bloc/auth/auth_cubit.dart';
-import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../core/permissions.dart';
 import '../models/documents_model.dart';
@@ -125,7 +124,7 @@ class _DocumentsTableState extends State<DocumentsTable> {
 
         // 🎨 Header styling (Dark Mode Safe)
         headingRowColor: WidgetStateProperty.all(
-          theme.colorScheme.surfaceVariant,
+          theme.colorScheme.surfaceContainerHighest,
         ),
         headingTextStyle: theme.textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.bold,
@@ -185,17 +184,17 @@ class _DocumentsTableState extends State<DocumentsTable> {
             selected: isSelected,
 
             // Zebra + Hover + Selected
-            color: MaterialStateProperty.resolveWith<Color?>(
+            color: WidgetStateProperty.resolveWith<Color?>(
               (states) {
-                if (states.contains(MaterialState.selected)) {
+                if (states.contains(WidgetState.selected)) {
                   return theme.colorScheme.primary.withOpacity(0.12);
                 }
-                if (states.contains(MaterialState.hovered)) {
+                if (states.contains(WidgetState.hovered)) {
                   return theme.colorScheme.primary.withOpacity(0.06);
                 }
                 return index.isEven
                     ? theme.colorScheme.surface
-                    : theme.colorScheme.surfaceVariant.withOpacity(0.4);
+                    : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4);
               },
             ),
 
