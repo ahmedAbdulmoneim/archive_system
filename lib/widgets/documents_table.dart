@@ -5,12 +5,11 @@ import 'package:intl/intl.dart';
 import '../bloc/auth/auth_cubit.dart';
 import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
-import '../bloc/documents/documents_state.dart';
 import '../core/permissions.dart';
 import '../models/documents_model.dart';
 import '../screens/add_document_screen.dart';
 
-class DocumentsTable extends StatelessWidget {
+class DocumentsTable extends StatefulWidget {
   final List<DocumentModel> documents;
 
   const DocumentsTable({
@@ -18,8 +17,97 @@ class DocumentsTable extends StatelessWidget {
     required this.documents,
   });
 
-  String safe(String? v) => v == null || v.isEmpty ? '' : v;
+  @override
+  State<DocumentsTable> createState() => _DocumentsTableState();
+}
 
+class _DocumentsTableState extends State<DocumentsTable> {
+  String safe(String? v) => v == null || v.isEmpty ? '' : v;
+  int? sortColumnIndex;
+  bool isAscending = true;
+
+  void onSort<T>(
+      Comparable<T> Function(DocumentModel d) getField, int columnIndex) {
+    setState(() {
+      sortColumnIndex = columnIndex;
+      isAscending = !isAscending;
+
+      widget.documents.sort((a, b) {
+        final aValue = getField(a);
+        final bValue = getField(b);
+        return isAscending
+            ? Comparable.compare(aValue, bValue)
+            : Comparable.compare(bValue, aValue);
+      });
+    });
+  }
+
+  // ============================================================
+  void showDocumentDetailsSheet(BuildContext context, DocumentModel doc) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              Text(
+                'تفاصيل المستند',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 20),
+              _detailItem('الصنف', doc.categoryName),
+              _detailItem('الرقم', doc.number),
+              _detailItem('التاريخ', doc.date?.toString()),
+              _detailItem('صادر من', doc.from),
+              _detailItem('وارد إلى', doc.to),
+              _detailItem('الموضوع', doc.subject),
+              _detailItem('الكلمات الدلالية', doc.keywords.join(', ')),
+              _detailItem('ملاحظات', doc.notes),
+              _detailItem('عدد المرفقات', '${doc.attachments.length}'),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailItem(String title, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Text(
+            '$title: ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Expanded(child: Text(value ?? '')),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<DocumentsCubit>();
@@ -31,20 +119,18 @@ class DocumentsTable extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columnSpacing: 20,
+        sortColumnIndex: sortColumnIndex,
+        sortAscending: isAscending,
 
-        // =========================
-        // 🎨 HEADER STYLE (DARK SAFE)
-        // =========================
-        headingRowColor: MaterialStateProperty.all(
+        // 🎨 Header styling (Dark Mode Safe)
+        headingRowColor: WidgetStateProperty.all(
           theme.colorScheme.surfaceVariant,
         ),
         headingTextStyle: theme.textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.bold,
         ),
 
-        // =========================
-        // 📏 BORDERS & DIVIDERS
-        // =========================
+        // Borders
         dividerThickness: 1,
         border: TableBorder.all(
           color: theme.dividerColor,
@@ -56,66 +142,90 @@ class DocumentsTable extends StatelessWidget {
           DataColumn(
             label: isAdmin
                 ? Checkbox(
-              value: cubit.selectedCount == documents.length && documents.isNotEmpty,
-              onChanged: (v) {
-                cubit.toggleSelectAll(v ?? false);
-              },
-            )
-                : const SizedBox(), // hide for normal users
+                    value: cubit.selectedCount == widget.documents.length &&
+                        widget.documents.isNotEmpty,
+                    onChanged: (v) {
+                      cubit.toggleSelectAll(v ?? false);
+                    },
+                  )
+                : const SizedBox(),
+          ),
+          const DataColumn(label: Text('الصنف')),
+          DataColumn(
+            label: const Text('الرقم'),
+            onSort: (columnIndex, _) {
+              onSort((d) => d.number ?? "", columnIndex);
+            },
           ),
 
-          const DataColumn(label: Text('الصنف')),
-          const DataColumn(label: Text('الرقم')),
-          const DataColumn(label: Text('التاريخ')),
+          DataColumn(
+            label: const Text('التاريخ'),
+            onSort: (columnIndex, _) {
+              onSort((d) => d.date ?? DateTime(1900), columnIndex);
+            },
+          ),
+
           const DataColumn(label: Text('صادر من')),
           const DataColumn(label: Text('وارد إلى')),
           const DataColumn(label: Text('الموضوع')),
           const DataColumn(label: Text('كلمات دلالية')),
           const DataColumn(label: Text('ملاحظات')),
           const DataColumn(label: Text('مرفقات')),
+          const DataColumn(label: Text('عرض')), // زر التفاصيل
         ],
 
         // ================= ROWS =================
-        rows: documents.map((doc) {
+        rows: widget.documents.map((doc) {
           final isSelected = cubit.isSelected(doc.id);
+          final index = widget.documents.indexOf(doc);
 
           return DataRow(
             selected: isSelected,
-              color: WidgetStateProperty.resolveWith<Color?>(
-          (states) {
-            if (states.contains(WidgetState.hovered)) {
-              return theme.colorScheme.primary.withOpacity(0.06);
-            }
-            final index = documents.indexOf(doc);
-            return index.isEven
-                ? theme.colorScheme.surface
-                : theme.colorScheme.surfaceVariant.withOpacity(0.4);
-          },
-          ),
-            onSelectChanged: isAdmin
-                ? (_) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
-                    value: cubit,
-                    child: AddDocumentScreen(document: doc),
+
+            // Zebra + Hover + Selected
+            color: MaterialStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(MaterialState.selected)) {
+                  return theme.colorScheme.primary.withOpacity(0.12);
+                }
+                if (states.contains(MaterialState.hovered)) {
+                  return theme.colorScheme.primary.withOpacity(0.06);
+                }
+                return index.isEven
+                    ? theme.colorScheme.surface
+                    : theme.colorScheme.surfaceVariant.withOpacity(0.4);
+              },
+            ),
+
+            // الضغط على الصف
+            onSelectChanged: (_) {
+              if (isAdmin) {
+                // فتح شاشة التعديل
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: cubit,
+                      child: AddDocumentScreen(document: doc),
+                    ),
                   ),
-                ),
-              );
-            }
-                : null,
+                );
+              } else {
+                // فتح التفاصيل فقط
+                showDocumentDetailsSheet(context, doc);
+              }
+            },
+
             cells: [
-              // ✅ CHECKBOX (IMPROVED)
+              // Checkbox للأدمن فقط
               DataCell(
                 isAdmin
                     ? Checkbox(
-                  value: cubit.isSelected(doc.id),
-                  onChanged: (_) => cubit.toggleSelection(doc.id),
-                )
-                    : const SizedBox(), // hide for normal users
+                        value: isSelected,
+                        onChanged: (_) => cubit.toggleSelection(doc.id),
+                      )
+                    : const SizedBox(),
               ),
-
 
               DataCell(Text(safe(doc.categoryName))),
               DataCell(Text(safe(doc.number))),
@@ -131,9 +241,7 @@ class DocumentsTable extends StatelessWidget {
               DataCell(Text(safe(doc.subject))),
               DataCell(
                 Text(
-                  doc.keywords.isEmpty
-                      ? ''
-                      : doc.keywords.join(', '),
+                  doc.keywords.join(', '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -146,19 +254,23 @@ class DocumentsTable extends StatelessWidget {
                 ),
               ),
               DataCell(
-                Tooltip(
-                  message: 'عدد المرفقات: ${doc.attachments.length}',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.attach_file,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text('${doc.attachments.length}'),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.attach_file, size: 16),
+                    const SizedBox(width: 4),
+                    Text('${doc.attachments.length}'),
+                  ],
+                ),
+              ),
+
+              // زر عرض التفاصيل
+              DataCell(
+                IconButton(
+                  icon: const Icon(Icons.visibility),
+                  tooltip: 'عرض التفاصيل',
+                  onPressed: () {
+                    showDocumentDetailsSheet(context, doc);
+                  },
                 ),
               ),
             ],
