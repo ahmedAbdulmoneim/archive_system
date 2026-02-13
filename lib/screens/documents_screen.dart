@@ -9,6 +9,7 @@ import '../bloc/documents/documents_state.dart';
 import '../bloc/types_cubit/types_cubit.dart';
 import '../services/excel_export_service.dart';
 import '../services/pdf_export_service.dart';
+import '../widgets/advanced_search_dialog.dart';
 import '../widgets/documents_table.dart';
 import 'account_screen.dart';
 import 'add_document_screen.dart';
@@ -28,6 +29,11 @@ class _DocumentsScreenState extends State<DocumentsScreen>
   late AnimationController _controller;
   late Animation<double> _fade;
   late Animation<Offset> _slide;
+
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -58,7 +64,8 @@ class _DocumentsScreenState extends State<DocumentsScreen>
     _controller.forward();
   }
   void _confirmDelete(
-      BuildContext context, DocumentsCubit cubit) {
+      BuildContext context, DocumentsCubit cubit)
+  {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -87,11 +94,16 @@ class _DocumentsScreenState extends State<DocumentsScreen>
     );
   }
 
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
+
+  // ============================================================
+  // UI
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +115,23 @@ class _DocumentsScreenState extends State<DocumentsScreen>
           appBar: AppBar(
             title: const Text('Documents'),
             actions: [
+              // ========================
+              // search
+              // =======================
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
+                  final cubit = context.read<DocumentsCubit>();
+
+                  showDialog(
+                    context: context,
+                    builder: (_) => BlocProvider.value(
+                      value: cubit,
+                      child: const AdvancedSearchDialog(),
+                    ),
+                  );
+                },
+              ),
 
               // =========================
               // 👥 USERS (ADMIN)
@@ -270,10 +299,6 @@ class _DocumentsScreenState extends State<DocumentsScreen>
 
             ],
           ),
-
-          // =========================
-          // ➕ ADD DOCUMENT
-          // =========================
           floatingActionButton:
           BlocBuilder<AuthCubit, AuthState>(
             builder: (context, state) {
@@ -299,56 +324,53 @@ class _DocumentsScreenState extends State<DocumentsScreen>
               return const SizedBox();
             },
           ),
-
-          // =========================
-          // 📄 BODY
-          // =========================
           body: BlocBuilder<DocumentsCubit, DocumentsState>(
             builder: (context, state) {
+              final cubit = context.read<DocumentsCubit>();
+
               if (state is DocumentsLoading) {
-                return const Center(
-                    child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator());
               }
 
               if (state is DocumentsLoaded) {
                 return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: TextField(
-                        onChanged: (value) {
-                          context
-                              .read<DocumentsCubit>()
-                              .search(value);
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'بحث...',
-                          prefixIcon:
-                          const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.circular(8),
-                          ),
+                    if (cubit.isSearching)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'نتائج البحث: ${state.documents.length}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton.icon(
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('عرض كل المستندات'),
+                              onPressed: () {
+                                cubit.clearSearch();
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+
                     Expanded(
-                      child: DocumentsTable(
-                        documents: state.documents,
-                      ),
+                      child: DocumentsTable(documents: state.documents),
                     ),
                   ],
                 );
               }
 
-              if (state is DocumentsError) {
-                return Center(
-                    child: Text(state.message));
-              }
-
               return const SizedBox();
             },
           ),
+
+
         ),
       ),
     );

@@ -9,16 +9,32 @@ class DocumentsCubit extends Cubit<DocumentsState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   List<DocumentModel> _allDocuments = [];
+  List<DocumentModel> _visibleDocuments = [];
+
+  bool _isSearching = false;
+  bool get isSearching => _isSearching;
+
   String? _sortField;
   bool _ascending = true;
+
   final Set<String> _selectedIds = {};
+  bool get hasSelection => _selectedIds.isNotEmpty;
+  int get selectedCount => _selectedIds.length;
 
+  DocumentsCubit() : super(const DocumentsInitial());
 
-  DocumentsCubit() : super(DocumentsInitial());
+  // 🔑 الطريقة الصحيحة الوحيدة للإرسال
+  void _emitVisible() {
+    emit(DocumentsLoaded(
+      documents: List.from(_visibleDocuments),
+      selectedIds: Set.from(_selectedIds),
+      isSearching: _isSearching,
+    ));
+  }
 
   // ================= FETCH =================
   Future<void> fetchDocuments() async {
-    emit(DocumentsLoading());
+    emit(const DocumentsLoading());
 
     try {
       final snapshot = await _firestore
@@ -30,65 +46,113 @@ class DocumentsCubit extends Cubit<DocumentsState> {
           .map((e) => DocumentModel.fromMap(e.data(), e.id))
           .toList();
 
-      _selectedIds.clear(); // ✅ ADD THIS
+      _visibleDocuments = List.from(_allDocuments);
+      _selectedIds.clear();
+      _isSearching = false;
 
-      emit(DocumentsLoaded(_allDocuments));
+      _emitVisible();
     } catch (e) {
       emit(DocumentsError(e.toString()));
     }
   }
 
-  // ================= SEARCH =================
+  // ================= SIMPLE SEARCH =================
   void search(String query) {
     if (query.isEmpty) {
-      emit(DocumentsLoaded(_allDocuments));
+      clearSearch();
       return;
     }
 
+    _isSearching = true;
     final lower = query.toLowerCase();
 
-    final filtered = _allDocuments.where((doc) {
+    _visibleDocuments = _allDocuments.where((doc) {
       return doc.categoryName.toLowerCase().contains(lower) ||
           doc.from.toLowerCase().contains(lower) ||
           doc.number.toLowerCase().contains(lower) ||
           doc.notes.toLowerCase().contains(lower) ||
-          doc.paperArchive.toLowerCase().contains(lower)||
-          doc.date.toString().contains(query)||
+          doc.paperArchive.toLowerCase().contains(lower) ||
           doc.subject.toLowerCase().contains(lower);
     }).toList();
 
-    emit(DocumentsLoaded(filtered));
+    _emitVisible();
   }
 
-  // ================= ADD =================
-  Future<void> addDocument(DocumentModel doc) async {
-    try {
-      await _firestore.collection('documents').add(doc.toMap());
-      await AuditService.log(
-        action: 'add_document',
-        entity: 'document',
-        description: 'تم إضافة وثيقة جديدة',
-      );
-      await fetchDocuments();
-    } catch (e) {
-      emit(DocumentsError(e.toString()));
+  // ================= ADVANCED SEARCH =================
+  void searchAdvanced({
+    String text = "",
+    DateTime? from,
+    DateTime? to,
+    String? category,
+    String? paper,
+    String? fromField,
+    String? toField,
+    String? subject,
+    String? keywords,
+  }) {
+    _isSearching = true;
+    List<DocumentModel> result = List.from(_allDocuments);
+
+    if (text.isNotEmpty) {
+      final lower = text.toLowerCase();
+      result = result.where((doc) {
+        return doc.categoryName.toLowerCase().contains(lower) ||
+            doc.from.toLowerCase().contains(lower) ||
+            doc.to.toLowerCase().contains(lower) ||
+            doc.subject.toLowerCase().contains(lower) ||
+            doc.notes.toLowerCase().contains(lower) ||
+            doc.paperArchive.toLowerCase().contains(lower) ||
+            doc.keywords.join(',').toLowerCase().contains(lower);
+      }).toList();
     }
+
+    if (category != null && category.isNotEmpty) {
+      result = result.where((doc) => doc.categoryName == category).toList();
+    }
+
+    if (paper != null && paper.isNotEmpty) {
+      result = result.where((doc) => doc.paperArchive == paper).toList();
+    }
+
+    if (fromField != null && fromField.isNotEmpty) {
+      result = result.where((doc) => doc.from.contains(fromField)).toList();
+    }
+
+    if (toField != null && toField.isNotEmpty) {
+      result = result.where((doc) => doc.to.contains(toField)).toList();
+    }
+
+    if (subject != null && subject.isNotEmpty) {
+      result = result.where((doc) => doc.subject.contains(subject)).toList();
+    }
+
+    if (keywords != null && keywords.isNotEmpty) {
+      result = result.where(
+            (doc) => doc.keywords.any((k) => k.contains(keywords)),
+      ).toList();
+    }
+
+    if (from != null) {
+      result = result.where(
+            (doc) => doc.date != null && !doc.date!.isBefore(from),
+      ).toList();
+    }
+
+    if (to != null) {
+      result = result.where(
+            (doc) => doc.date != null && !doc.date!.isAfter(to),
+      ).toList();
+    }
+
+    _visibleDocuments = List.from(result);
+    _emitVisible();
   }
 
-  // ================= UPDATE =================
-  Future<void> updateDocument(DocumentModel doc) async {
-    await _firestore
-        .collection('documents')
-        .doc(doc.id)
-        .update(doc.toMap());
-    await AuditService.log(
-      action: 'update_document',
-      entity: 'document',
-      entityId: doc.id,
-      description: 'تم تعديل وثيقة',
-    );
-
-    await fetchDocuments();
+  // ================= CLEAR SEARCH =================
+  void clearSearch() {
+    _isSearching = false;
+    _visibleDocuments = List.from(_allDocuments);
+    _emitVisible();
   }
 
   // ================= SORT =================
@@ -102,7 +166,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
       _ascending = true;
     }
 
-    final sorted = List<DocumentModel>.from(_allDocuments)..sort((a, b) {
+    _visibleDocuments.sort((a, b) {
       dynamic aValue;
       dynamic bValue;
 
@@ -130,9 +194,36 @@ class DocumentsCubit extends Cubit<DocumentsState> {
           : bValue.compareTo(aValue);
     });
 
-    emit(DocumentsLoaded(sorted));
+    _emitVisible();
   }
-  //=================== Delete ===============
+
+  // ================= SELECTION =================
+  bool isSelected(String id) => _selectedIds.contains(id);
+
+  void toggleSelection(String id) {
+    _selectedIds.contains(id)
+        ? _selectedIds.remove(id)
+        : _selectedIds.add(id);
+    _emitVisible();
+  }
+
+  void toggleSelectAll(bool selectAll) {
+    if (selectAll) {
+      _selectedIds
+        ..clear()
+        ..addAll(_visibleDocuments.map((e) => e.id));
+    } else {
+      _selectedIds.clear();
+    }
+    _emitVisible();
+  }
+
+  void clearSelection() {
+    _selectedIds.clear();
+    _emitVisible();
+  }
+
+  // ================= DELETE =================
   Future<void> deleteSelected() async {
     final batch = _firestore.batch();
 
@@ -148,43 +239,34 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     }
 
     await batch.commit();
-
     _selectedIds.clear();
     await fetchDocuments();
   }
-// ================= SELECTION =================
 
-  bool isSelected(String id) => _selectedIds.contains(id);
-
-  int get selectedCount => _selectedIds.length;
-
-  void toggleSelection(String id) {
-    if (_selectedIds.contains(id)) {
-      _selectedIds.remove(id);
-    } else {
-      _selectedIds.add(id);
-    }
-    emit(DocumentsLoaded(List.of(_allDocuments)));
+  // ================= ADD / UPDATE =================
+  Future<void> addDocument(DocumentModel doc) async {
+    await _firestore.collection('documents').add(doc.toMap());
+    await AuditService.log(
+      action: 'add_document',
+      entity: 'document',
+      description: 'تم إضافة وثيقة جديدة',
+    );
+    await fetchDocuments();
   }
 
-  void toggleSelectAll(bool selectAll) {
-    if (selectAll) {
-      _selectedIds
-        ..clear()
-        ..addAll(_allDocuments.map((e) => e.id));
-    } else {
-      _selectedIds.clear();
-    }
-    emit(DocumentsLoaded(List.of(_allDocuments)));
+  Future<void> updateDocument(DocumentModel doc) async {
+    await _firestore
+        .collection('documents')
+        .doc(doc.id)
+        .update(doc.toMap());
+
+    await AuditService.log(
+      action: 'update_document',
+      entity: 'document',
+      entityId: doc.id,
+      description: 'تم تعديل وثيقة',
+    );
+
+    await fetchDocuments();
   }
-
-  void clearSelection() {
-    _selectedIds.clear();
-    emit(DocumentsLoaded(List.of(_allDocuments)));
-  }
-
-
-
-  bool get hasSelection => _selectedIds.isNotEmpty;
-
 }
