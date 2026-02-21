@@ -36,9 +36,9 @@ class _DocumentsScreenState extends State<DocumentsScreen>
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
       context.read<DocumentsCubit>().fetchDocuments(
-        role: authState.role,
-        branchId: authState.branchId,
-      );
+            role: authState.role,
+            branchId: authState.branchId,
+          );
     }
 
     _controller = AnimationController(
@@ -103,9 +103,9 @@ class _DocumentsScreenState extends State<DocumentsScreen>
       listener: (context, state) {
         final auth = state as AuthAuthenticated;
         context.read<DocumentsCubit>().fetchDocuments(
-          role: auth.role,
-          branchId: auth.branchId,
-        );
+              role: auth.role,
+              branchId: auth.branchId,
+            );
       },
       child: FadeTransition(
         opacity: _fade,
@@ -113,7 +113,7 @@ class _DocumentsScreenState extends State<DocumentsScreen>
           position: _slide,
           child: Scaffold(
             appBar: AppBar(
-              title: const Text('Documents'),
+              title: const Text('إدارة المستندات'),
               actions: [
                 // 🔍 البحث
                 IconButton(
@@ -185,7 +185,7 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                         tooltip: 'Export PDF',
                         onPressed: () {
                           final docs = (context.read<DocumentsCubit>().state
-                          as DocumentsLoaded)
+                                  as DocumentsLoaded)
                               .documents;
                           PdfExportService.exportDocuments(docs);
                         },
@@ -206,7 +206,7 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                         tooltip: 'Export Excel',
                         onPressed: () {
                           final docs = (context.read<DocumentsCubit>().state
-                          as DocumentsLoaded)
+                                  as DocumentsLoaded)
                               .documents;
                           ExcelExportService.exportDocuments(docs);
                         },
@@ -227,6 +227,20 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                         builder: (_) => const AccountScreen(),
                       ),
                     );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: "تحديث",
+                  onPressed: () {
+                    final authState = context.read<AuthCubit>().state;
+                    if (authState is AuthAuthenticated) {
+                      context.read<DocumentsCubit>().reset();
+                      context.read<DocumentsCubit>().fetchDocuments(
+                            role: authState.role,
+                            branchId: authState.branchId,
+                          );
+                    }
                   },
                 ),
 
@@ -334,8 +348,8 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                                     .textTheme
                                     .bodyMedium
                                     ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                               const Spacer(),
                               TextButton.icon(
