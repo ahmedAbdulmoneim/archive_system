@@ -16,7 +16,7 @@ class DocumentsTable extends StatelessWidget {
     required this.documents,
   });
 
-  String safe(String? v) => v == null || v.isEmpty ? '' : v;
+  String safe(String? v) => v ?? '';
 
   // ============================================================
   void showDocumentDetailsSheet(BuildContext context, DocumentModel doc) {
@@ -51,14 +51,19 @@ class DocumentsTable extends StatelessWidget {
               const SizedBox(height: 20),
               _detailItem('الصنف', doc.categoryName),
               _detailItem('الرقم', doc.number),
-              _detailItem('التاريخ', doc.date?.toString()),
+              _detailItem(
+                'التاريخ',
+                doc.date == null
+                    ? ''
+                    : DateFormat.yMd('ar').format(doc.date!),
+              ),
               _detailItem('صادر من', doc.from),
               _detailItem('وارد إلى', doc.to),
               _detailItem('الموضوع', doc.subject),
               _detailItem('الكلمات الدلالية', doc.keywords?.join(', ')),
               _detailItem('الحفظ الورقي', doc.paperArchive),
               _detailItem('ملاحظات', doc.notes),
-              _detailItem('عدد المرفقات', '${doc.attachments?.length}'),
+              _detailItem('عدد المرفقات', '${doc.attachments?.length ?? 0}'),
             ],
           ),
         );
@@ -177,8 +182,7 @@ class DocumentsTable extends StatelessWidget {
                   isAdmin
                       ? Checkbox(
                     value: isSelected,
-                    onChanged: (_) =>
-                        cubit.toggleSelection(doc.id),
+                    onChanged: (_) => cubit.toggleSelection(doc.id),
                   )
                       : const SizedBox(),
                 ),
@@ -196,7 +200,9 @@ class DocumentsTable extends StatelessWidget {
                 DataCell(Text(safe(doc.subject))),
                 DataCell(
                   Text(
-                    doc.keywords!.join(', '),
+                    doc.keywords == null
+                        ? ''
+                        : doc.keywords!.join(', '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -214,14 +220,12 @@ class DocumentsTable extends StatelessWidget {
                     children: [
                       const Icon(Icons.attach_file, size: 16),
                       const SizedBox(width: 4),
-                      Text('${doc.attachments?.length}'),
+                      Text('${doc.attachments?.length ?? 0}'),
                     ],
                   ),
                 ),
                 DataCell(Text(doc.createdBy ?? '—')),
                 DataCell(Text(doc.branchName ?? doc.branchId ?? '—')),
-
-
                 DataCell(
                   IconButton(
                     icon: const Icon(Icons.visibility),

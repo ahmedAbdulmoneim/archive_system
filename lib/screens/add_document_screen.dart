@@ -63,6 +63,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   void initState() {
     super.initState();
     context.read<TypesCubit>().loadTypes();
+
     if (widget.document != null) {
       final doc = widget.document!;
 
@@ -75,6 +76,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _keywordsController.text = (doc.keywords ?? []).join(', ');
       _selectedDate = doc.date;
       _categoryName = doc.categoryName ?? '';
+    } else {
+      // ⭐ التاريخ الافتراضي = اليوم
+      _selectedDate = DateTime.now();
     }
   }
 
@@ -102,10 +106,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
           final typesCubit = context.read<TypesCubit>();
 
-          if (typesCubit.categories.isEmpty && typesCubit.paperTypes.isEmpty) {
-            return const Center(child: Text('لا توجد بيانات'));
-          }
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Form(
@@ -115,40 +115,39 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   // ---------------- الصنف ----------------
                   DropdownButtonFormField<String>(
                     value: typesCubit.categories
-                            .any((item) => item["name"] == _categoryName)
+                        .any((item) => item["name"] == _categoryName)
                         ? _categoryName
                         : null,
                     decoration: const InputDecoration(
-                      labelText: 'الصنف',
+                      labelText: 'الصنف (اختياري)',
                       border: OutlineInputBorder(),
                     ),
                     items: typesCubit.categories
                         .map(
                           (item) => DropdownMenuItem<String>(
-                            value: item["name"] as String,
-                            child: Text(item["name"] as String),
-                          ),
-                        )
+                        value: item["name"] as String,
+                        child: Text(item["name"] as String),
+                      ),
+                    )
                         .toList(),
-                    onChanged: (v) => setState(() => _categoryName = v!),
-                    validator: (v) => v == null ? 'اختر الصنف' : null,
+                    onChanged: (v) => setState(() => _categoryName = v ?? ''),
                   ),
 
                   const SizedBox(height: 12),
 
-                  _textField('رقم الوثيقة', _numberController),
+                  _textField('رقم الوثيقة (اختياري)', _numberController),
                   _datePicker(context),
-                  _textField('صادر من', _fromController),
-                  _textField('وارد إلى', _toController),
-                  _textField('الموضوع', _subjectController),
+                  _textField('صادر من (اختياري)', _fromController),
+                  _textField('وارد إلى (اختياري)', _toController),
+                  _textField('الموضوع (اختياري)', _subjectController),
 
                   _textField(
-                    'كلمات دلالية (افصل بفاصلة)',
+                    'كلمات دلالية (اختياري)',
                     _keywordsController,
                   ),
 
                   _textField(
-                    'ملاحظات',
+                    'ملاحظات (اختياري)',
                     _notesController,
                     maxLines: 3,
                   ),
@@ -156,24 +155,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   // ---------------- الحفظ الورقي ----------------
                   DropdownButtonFormField<String>(
                     value: typesCubit.paperTypes.any((item) =>
-                            item["name"] == _paperArchiveController.text)
+                    item["name"] == _paperArchiveController.text)
                         ? _paperArchiveController.text
                         : null,
                     decoration: const InputDecoration(
-                      labelText: 'نوع الحفظ الورقي',
+                      labelText: 'نوع الحفظ الورقي (اختياري)',
                       border: OutlineInputBorder(),
                     ),
                     items: typesCubit.paperTypes
                         .map(
                           (item) => DropdownMenuItem<String>(
-                            value: item["name"] as String,
-                            child: Text(item["name"] as String),
-                          ),
-                        )
+                        value: item["name"] as String,
+                        child: Text(item["name"] as String),
+                      ),
+                    )
                         .toList(),
                     onChanged: (v) {
                       setState(() {
-                        _paperArchiveController.text = v!;
+                        _paperArchiveController.text = v ?? '';
                       });
                     },
                   ),
@@ -217,7 +216,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
-        validator: (v) => v == null || v.isEmpty ? 'مطلوب' : null,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
@@ -243,7 +241,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         },
         child: InputDecorator(
           decoration: const InputDecoration(
-            labelText: 'التاريخ',
+            labelText: 'التاريخ (إجباري)',
             border: OutlineInputBorder(),
           ),
           child: Text(
@@ -295,7 +293,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   }
 
   void _saveDocument() async {
-    if (!_formKey.currentState!.validate()) return;
+    // ⭐ التاريخ فقط إلزامي
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("يجب اختيار التاريخ")),
+      );
+      return;
+    }
 
     final authState = context.read<AuthCubit>().state;
     if (authState is! AuthAuthenticated) return;
@@ -322,19 +326,21 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     final doc = DocumentModel(
       id: widget.document?.id ?? '',
-      categoryName: _categoryName,
-      number: _numberController.text,
+      categoryName: _categoryName.isEmpty ? null : _categoryName,
+      number: _numberController.text.isEmpty ? null : _numberController.text,
       date: _selectedDate,
-      from: _fromController.text,
-      to: _toController.text,
-      subject: _subjectController.text,
+      from: _fromController.text.isEmpty ? null : _fromController.text,
+      to: _toController.text.isEmpty ? null : _toController.text,
+      subject: _subjectController.text.isEmpty ? null : _subjectController.text,
       keywords: keywords.isEmpty ? null : keywords,
-      notes: _notesController.text,
-      paperArchive: _paperArchiveController.text,
+      notes: _notesController.text.isEmpty ? null : _notesController.text,
+      paperArchive: _paperArchiveController.text.isEmpty
+          ? null
+          : _paperArchiveController.text,
       attachments: _attachments.isEmpty ? null : _attachments,
       createdBy: authState.name ?? authState.user.email,
       branchId: authState.branchId,
-      branchName: branchName, // ⭐ هنا الحل النهائي
+      branchName: branchName,
     );
 
     if (widget.document == null) {
@@ -345,7 +351,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     Navigator.pop(context);
   }
-
 }
 
 Widget _attachmentIcon(String type) {
