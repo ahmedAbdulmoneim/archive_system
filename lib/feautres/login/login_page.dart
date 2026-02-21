@@ -138,47 +138,63 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        // 🔥 لو تسجيل الدخول نجح → انتقل للشاشة التالية
+        if (state is AuthAuthenticated) {
+          Navigator.pushReplacementNamed(context, '/documents');
+        }
 
-          // =========================
-          // 🖼️ BACKGROUND IMAGE
-          // =========================
-          FadeTransition(
-            opacity: _imageFade,
-            child: Image.asset(
-              'assets/logo.jpg',
-              fit: BoxFit.cover,
-            ),
-          ),
+        // ❌ لو في خطأ → اعرضه
+        if (state is AuthError) {
+          setState(() {
+            _error = state.message;
+          });
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
 
-          // =========================
-          // 🌫️ OVERLAY
-          // =========================
-          Container(
-            color: Colors.black.withOpacity(0.45),
-          ),
-
-          // =========================
-          // 🔐 LOGIN FORM
-          // =========================
-          FadeTransition(
-            opacity: _formFade,
-            child: SlideTransition(
-              position: _formSlide,
-              child: ResponsiveLayout(
-                mobile: _form(double.infinity),
-                tablet: _form(420),
-                desktop: Center(child: _form(420)),
+            // =========================
+            // 🖼️ BACKGROUND IMAGE
+            // =========================
+            FadeTransition(
+              opacity: _imageFade,
+              child: Image.asset(
+                'assets/logo.jpg',
+                fit: BoxFit.cover,
               ),
             ),
-          ),
-        ],
+
+            // =========================
+            // 🌫️ OVERLAY
+            // =========================
+            Container(
+              color: Colors.black.withOpacity(0.45),
+            ),
+
+            // =========================
+            // 🔐 LOGIN FORM
+            // =========================
+            FadeTransition(
+              opacity: _formFade,
+              child: SlideTransition(
+                position: _formSlide,
+                child: ResponsiveLayout(
+                  mobile: _form(double.infinity),
+                  tablet: _form(420),
+                  desktop: Center(child: _form(420)),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
 
   Widget _form(double width) {
     return Container(

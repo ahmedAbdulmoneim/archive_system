@@ -71,6 +71,9 @@ class UsersCubit extends Cubit<List<Map<String, dynamic>>> {
 
     await fetchUsers();
   }
+  void reset() {
+    emit([]);
+  }
 
   // ====================== create user =============
   Future<void> createUser({ required String email, required String password, required String role, required bool active, }) async { final callable = FirebaseFunctions.instance.httpsCallable('createUser'); await callable.call({ 'email': email, 'password': password, 'role': role, 'active': active, }); await fetchUsers(); }

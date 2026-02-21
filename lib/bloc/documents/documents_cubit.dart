@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -21,9 +22,11 @@ class DocumentsCubit extends Cubit<DocumentsState> {
   bool get hasSelection => _selectedIds.isNotEmpty;
   int get selectedCount => _selectedIds.length;
 
+  bool _loaded = false;
+
   DocumentsCubit() : super(const DocumentsInitial());
 
-  // 🔑 الطريقة الصحيحة الوحيدة للإرسال
+  // ================= INTERNAL EMIT =================
   void _emitVisible() {
     emit(DocumentsLoaded(
       documents: List.from(_visibleDocuments),
@@ -32,18 +35,43 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     ));
   }
 
-  // ================= FETCH =================
-  Future<void> fetchDocuments() async {
+  // ================= FETCH DOCUMENTS =================
+  Future<void> fetchDocuments({
+    required String role,
+    String? branchId,
+  }) async
+  {
+    if (_loaded) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      emit(const DocumentsInitial());
+      return;
+    }
+
+    _loaded = true;
     emit(const DocumentsLoading());
 
     try {
-      final snapshot = await _firestore
-          .collection('documents')
-          .orderBy('createdAt', descending: true)
-          .get();
+      Query<Map<String, dynamic>> query =
+      _firestore.collection('documents');
+
+      if (role != 'super_admin') {
+        if (branchId == null) {
+          emit(const DocumentsLoaded(
+            documents: [],
+            selectedIds: {},
+            isSearching: false,
+          ));
+          return;
+        }
+        query = query.where('branchId', isEqualTo: branchId);
+      }
+
+      final snapshot = await query.get();
 
       _allDocuments = snapshot.docs
-          .map((e) => DocumentModel.fromMap(e.data(), e.id))
+          .map((d) => DocumentModel.fromMap(d.data(), d.id))
           .toList();
 
       _visibleDocuments = List.from(_allDocuments);
@@ -56,7 +84,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     }
   }
 
-  // ================= SIMPLE SEARCH =================
+  // ================= SEARCH =================
   void search(String query) {
     if (query.isEmpty) {
       clearSearch();
@@ -67,12 +95,12 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     final lower = query.toLowerCase();
 
     _visibleDocuments = _allDocuments.where((doc) {
-      return doc.categoryName.toLowerCase().contains(lower) ||
-          doc.from.toLowerCase().contains(lower) ||
-          doc.number.toLowerCase().contains(lower) ||
-          doc.notes.toLowerCase().contains(lower) ||
-          doc.paperArchive.toLowerCase().contains(lower) ||
-          doc.subject.toLowerCase().contains(lower);
+      return (doc.categoryName ?? '').toLowerCase().contains(lower) ||
+          (doc.from ?? '').toLowerCase().contains(lower) ||
+          (doc.number ?? '').toLowerCase().contains(lower) ||
+          (doc.notes ?? '').toLowerCase().contains(lower) ||
+          (doc.paperArchive ?? '').toLowerCase().contains(lower) ||
+          (doc.subject ?? '').toLowerCase().contains(lower);
     }).toList();
 
     _emitVisible();
@@ -96,39 +124,50 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     if (text.isNotEmpty) {
       final lower = text.toLowerCase();
       result = result.where((doc) {
-        return doc.categoryName.toLowerCase().contains(lower) ||
-            doc.from.toLowerCase().contains(lower) ||
-            doc.to.toLowerCase().contains(lower) ||
-            doc.subject.toLowerCase().contains(lower) ||
-            doc.notes.toLowerCase().contains(lower) ||
-            doc.paperArchive.toLowerCase().contains(lower) ||
-            doc.keywords.join(',').toLowerCase().contains(lower);
+        return (doc.categoryName ?? '').toLowerCase().contains(lower) ||
+            (doc.from ?? '').toLowerCase().contains(lower) ||
+            (doc.to ?? '').toLowerCase().contains(lower) ||
+            (doc.subject ?? '').toLowerCase().contains(lower) ||
+            (doc.notes ?? '').toLowerCase().contains(lower) ||
+            (doc.paperArchive ?? '').toLowerCase().contains(lower) ||
+            (doc.keywords ?? []).join(',').toLowerCase().contains(lower);
       }).toList();
     }
 
     if (category != null && category.isNotEmpty) {
-      result = result.where((doc) => doc.categoryName == category).toList();
+      result = result
+          .where((doc) => (doc.categoryName ?? '') == category)
+          .toList();
     }
 
     if (paper != null && paper.isNotEmpty) {
-      result = result.where((doc) => doc.paperArchive == paper).toList();
+      result = result
+          .where((doc) => (doc.paperArchive ?? '') == paper)
+          .toList();
     }
 
     if (fromField != null && fromField.isNotEmpty) {
-      result = result.where((doc) => doc.from.contains(fromField)).toList();
+      result = result
+          .where((doc) => (doc.from ?? '').contains(fromField))
+          .toList();
     }
 
     if (toField != null && toField.isNotEmpty) {
-      result = result.where((doc) => doc.to.contains(toField)).toList();
+      result = result
+          .where((doc) => (doc.to ?? '').contains(toField))
+          .toList();
     }
 
     if (subject != null && subject.isNotEmpty) {
-      result = result.where((doc) => doc.subject.contains(subject)).toList();
+      result = result
+          .where((doc) => (doc.subject ?? '').contains(subject))
+          .toList();
     }
 
     if (keywords != null && keywords.isNotEmpty) {
       result = result.where(
-            (doc) => doc.keywords.any((k) => k.contains(keywords)),
+            (doc) =>
+            (doc.keywords ?? []).any((k) => k.contains(keywords)),
       ).toList();
     }
 
@@ -176,18 +215,16 @@ class DocumentsCubit extends Cubit<DocumentsState> {
           bValue = b.date;
           break;
         case 'number':
-          aValue = a.number;
-          bValue = b.number;
+          aValue = a.number ?? '';
+          bValue = b.number ?? '';
           break;
         case 'category':
-          aValue = a.categoryName;
-          bValue = b.categoryName;
+          aValue = a.categoryName ?? '';
+          bValue = b.categoryName ?? '';
           break;
         default:
           return 0;
       }
-
-      if (aValue == null || bValue == null) return 0;
 
       return _ascending
           ? aValue.compareTo(bValue)
@@ -228,30 +265,32 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     final batch = _firestore.batch();
 
     for (final id in _selectedIds) {
-      final ref = _firestore.collection('documents').doc(id);
-      await AuditService.log(
-        action: 'delete_document',
-        entity: 'document',
-        entityId: id,
-        description: 'تم حذف وثيقة',
-      );
-      batch.delete(ref);
+      batch.delete(_firestore.collection('documents').doc(id));
     }
 
     await batch.commit();
+
+    _allDocuments.removeWhere((d) => _selectedIds.contains(d.id));
+    _visibleDocuments.removeWhere((d) => _selectedIds.contains(d.id));
     _selectedIds.clear();
-    await fetchDocuments();
+
+    _emitVisible();
   }
 
   // ================= ADD / UPDATE =================
   Future<void> addDocument(DocumentModel doc) async {
+    final ref =
     await _firestore.collection('documents').add(doc.toMap());
+
+    _allDocuments.add(doc.copyWith(id: ref.id));
+    _visibleDocuments = List.from(_allDocuments);
+    _emitVisible();
+
     await AuditService.log(
       action: 'add_document',
       entity: 'document',
       description: 'تم إضافة وثيقة جديدة',
     );
-    await fetchDocuments();
   }
 
   Future<void> updateDocument(DocumentModel doc) async {
@@ -260,13 +299,28 @@ class DocumentsCubit extends Cubit<DocumentsState> {
         .doc(doc.id)
         .update(doc.toMap());
 
+    final index = _allDocuments.indexWhere((d) => d.id == doc.id);
+    if (index != -1) {
+      _allDocuments[index] = doc;
+      _visibleDocuments = List.from(_allDocuments);
+      _emitVisible();
+    }
+
     await AuditService.log(
       action: 'update_document',
       entity: 'document',
       entityId: doc.id,
       description: 'تم تعديل وثيقة',
     );
+  }
 
-    await fetchDocuments();
+  // ================= RESET =================
+  void reset() {
+    _allDocuments.clear();
+    _visibleDocuments.clear();
+    _selectedIds.clear();
+    _isSearching = false;
+    _loaded = false;
+    emit(const DocumentsInitial());
   }
 }

@@ -13,81 +13,84 @@ class DocumentsTableScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Documents'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (dialogContext) => AlertDialog(
-                  title: const Text('تسجيل الخروج'),
-                  content: const Text('هل تريد تسجيل الخروج؟'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('إلغاء'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        dialogContext.read<AuthCubit>().logout();
-                        Navigator.pop(dialogContext);
-                      },
-                      child: const Text('خروج'),
-                    ),
-                  ],
-                ),
-              );
-            },
 
-          ),
-        ],
-      ),
-
-
-      floatingActionButton: BlocBuilder<AuthCubit, AuthState>(
-        builder: (context, authState) {
-          if (!Permissions.isAdmin(authState)) {
-            return const SizedBox(); // ❌ user لا يرى الزر
-          }
-
-          return FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
-                    value: context.read<DocumentsCubit>(),
-                    child: const AddDocumentScreen(),
+    return BlocListener<AuthCubit, AuthState>( listenWhen: (prev, curr) => curr is AuthAuthenticated, listener: (context, state) { final auth = state as AuthAuthenticated; context.read<DocumentsCubit>().fetchDocuments( role: auth.role, branchId: auth.branchId, ); },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Documents'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'تسجيل الخروج',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('تسجيل الخروج'),
+                    content: const Text('هل تريد تسجيل الخروج؟'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('إلغاء'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          dialogContext.read<AuthCubit>().logout();
+                          Navigator.pop(dialogContext);
+                        },
+                        child: const Text('خروج'),
+                      ),
+                    ],
                   ),
-                ),
-              );
-            },
-            child: const Icon(Icons.add),
-          );
-        },
-      ),
-
-      body: BlocBuilder<DocumentsCubit, DocumentsState>(
-        builder: (context, state) {
-          if (state is DocumentsLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is DocumentsLoaded) {
-            return DocumentsTable(documents: state.documents
-          ,);
-          }
-
-          if (state is DocumentsError) {
-            return Center(child: Text(state.message));
-          }
-
-          return const SizedBox();
-        },
+                );
+              },
+      
+            ),
+          ],
+        ),
+      
+      
+        floatingActionButton: BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, authState) {
+            if (!Permissions.isSuperAdmin(authState)) {
+              return const SizedBox(); // ❌ user لا يرى الزر
+            }
+      
+            return FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<DocumentsCubit>(),
+                      child: const AddDocumentScreen(),
+                    ),
+                  ),
+                );
+              },
+              child: const Icon(Icons.add),
+            );
+          },
+        ),
+      
+        body: BlocBuilder<DocumentsCubit, DocumentsState>(
+          builder: (context, state) {
+            if (state is DocumentsLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+      
+            if (state is DocumentsLoaded) {
+              return DocumentsTable(documents: state.documents
+            ,);
+            }
+      
+            if (state is DocumentsError) {
+              return Center(child: Text(state.message));
+            }
+      
+            return const SizedBox();
+          },
+        ),
       ),
     );
   }

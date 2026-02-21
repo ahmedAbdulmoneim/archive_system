@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/types_cubit/types_cubit.dart';
 
@@ -22,6 +24,16 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
 
   String? category;
   String? paper;
+
+  @override
+  void dispose() {
+    number.dispose();
+    fromField.dispose();
+    toField.dispose();
+    subject.dispose();
+    keywords.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,15 +77,15 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
           child: const Text('بحث'),
           onPressed: () {
             context.read<DocumentsCubit>().searchAdvanced(
-              text: number.text,
+              text: number.text.trim(),
               from: fromDate,
               to: toDate,
-              category: category,
-              paper: paper,
-              fromField: fromField.text,
-              toField: toField.text,
-              subject: subject.text,
-              keywords: keywords.text,
+              category: category?.isEmpty == true ? null : category,
+              paper: paper?.isEmpty == true ? null : paper,
+              fromField: fromField.text.trim(),
+              toField: toField.text.trim(),
+              subject: subject.text.trim(),
+              keywords: keywords.text.trim(),
             );
             Navigator.pop(context);
           },
@@ -110,7 +122,11 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         },
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(value == null ? label : '$label: ${value.toLocal()}'),
+          child: Text(
+            value == null
+                ? label
+                : '$label: ${DateFormat.yMd('ar').format(value)}',
+          ),
         ),
       ),
     );
@@ -141,4 +157,3 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
     );
   }
 }
-

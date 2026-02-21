@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,25 +12,30 @@ class AuthCubit extends Cubit<AuthState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  AuthCubit() : super(AuthInitial());
+  StreamSubscription<User?>? _sub;
+  int _session = 0;
 
-  // =========================
-  // 🔹 Check auth on app start
-  // =========================
-  Future<void> checkAuthStatus() async {
-    final user = _auth.currentUser;
+  AuthCubit() : super(AuthLoading()) {
+    _sub = _auth.idTokenChanges().listen((user) async {
+      final mySession = ++_session;
 
-    if (user == null) {
-      emit(AuthUnauthenticated());
-      return;
-    }
+      if (user == null) {
+        emit(AuthUnauthenticated());
+        return;
+      }
 
-    await _emitAuthenticated(user);
+      // Ensure token is ready for Firestore on web
+      try {
+        await user.getIdToken(true);
+      } catch (_) {}
+
+      // If another auth event happened, stop
+      if (mySession != _session) return;
+
+      await _emitAuthenticated(user, mySession);
+    });
   }
 
-  // =========================
-  // 🔹 Login
-  // =========================
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
 
@@ -37,52 +45,47 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
       );
 
-      await AuditService.log(
-        action: 'LOGIN',
-        entity: 'auth',
-        entityId: cred.user!.uid,
-        description: 'تسجيل دخول',
-        by: cred.user!.uid,
-      );
+      // Force token readiness immediately
+      await cred.user?.getIdToken(true);
 
-      await _emitAuthenticated(cred.user!);
+      // Audit must NOT block login
+      try {
+        await AuditService.log(
+          action: 'LOGIN',
+          entity: 'auth',
+          entityId: cred.user!.uid,
+          description: 'تسجيل دخول',
+          by: cred.user!.uid,
+        );
+      } catch (_) {}
+
+      // Emit authenticated now (don’t wait for stream timing)
+      final mySession = _session;
+      await _emitAuthenticated(cred.user!, mySession);
     } catch (e) {
       emit(AuthError(e.toString()));
       emit(AuthUnauthenticated());
     }
   }
 
-  // =========================
-  // 🔹 Logout
-  // =========================
   Future<void> logout() async {
-    final user = _auth.currentUser;
-
-    if (user != null) {
-      await AuditService.log(
-        action: 'LOGOUT',
-        entity: 'auth',
-        entityId: user.uid,
-        description: 'تسجيل خروج',
-        by: user.uid,
-      );
-    }
-
     emit(AuthLoading());
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (_) {}
     emit(AuthUnauthenticated());
   }
 
-  // =========================
-  // 🔹 Load role + active safely
-  // =========================
-  Future<void> _emitAuthenticated(User user) async {
+  Future<void> _emitAuthenticated(User user, int mySession) async {
     try {
-      final doc =
-      await _firestore.collection('users').doc(user.uid).get();
+      // If auth changed while we were waiting, stop
+      if (mySession != _session) return;
 
-      // لو مفيش user document → user عادي
-      if (!doc.exists) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (mySession != _session) return;
+
+      if (!userDoc.exists) {
         emit(AuthAuthenticated(
           user,
           role: 'user',
@@ -91,37 +94,48 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
 
-      final data = doc.data()!;
+      final data = userDoc.data()!;
       final active = data['active'] ?? true;
       final role = data['role'] ?? 'user';
+      final branchId = data['branchId'];
+      final name = data['name']; // 🆕
 
       if (!active) {
-        await AuditService.log(
-          action: 'BLOCKED_LOGIN',
-          entity: 'auth',
-          entityId: user.uid,
-          description: 'محاولة دخول لحساب معطّل',
-          by: user.uid,
-        );
-
         await _auth.signOut();
-        emit(AuthError('الحساب غير مفعل'));
-        emit(AuthUnauthenticated());
+        emit(AuthUnauthenticated('الحساب غير مفعل'));
         return;
+      }
+
+      String? branchName;
+      try {
+        final branchDoc = await _firestore
+            .collection('branches')
+            .doc(branchId)
+            .get();
+        branchName = branchDoc.data()?['name'];
+      } catch (e) {
+        print('❌ branch read error: $e');
       }
 
       emit(AuthAuthenticated(
         user,
         role: role,
         active: active,
+        branchId: branchId,
+        branchName: branchName,
+        name: name, // ⭐
       ));
+
     } catch (e) {
-      // fallback آمن
-      emit(AuthAuthenticated(
-        user,
-        role: 'user',
-        active: true,
-      ));
+      // If Firestore fails here, you’ll never “finish login”
+      emit(AuthError(e.toString()));
+      emit(AuthUnauthenticated());
     }
+  }
+
+  @override
+  Future<void> close() {
+    _sub?.cancel();
+    return super.close();
   }
 }

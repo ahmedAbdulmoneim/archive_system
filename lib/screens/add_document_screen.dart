@@ -1,10 +1,12 @@
-import 'package:archive_system/bloc/documents/documents_state.dart';
 import 'package:archive_system/models/attachment_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../bloc/auth/auth_cubit.dart';
+import '../bloc/auth/auth_state.dart';
 import '../bloc/documents/documents_cubit.dart';
 import '../bloc/types_cubit/types_cubit.dart';
 import '../models/documents_model.dart';
@@ -60,20 +62,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   @override
   void initState() {
     super.initState();
-
+    context.read<TypesCubit>().loadTypes();
     if (widget.document != null) {
       final doc = widget.document!;
 
-      _numberController.text = doc.number;
-      _fromController.text = doc.from;
-      _toController.text = doc.to;
-      _subjectController.text = doc.subject;
-      _notesController.text = doc.notes;
-      _paperArchiveController.text = doc.paperArchive;
-      _keywordsController.text = doc.keywords.join(', ');
+      _numberController.text = doc.number ?? '';
+      _fromController.text = doc.from ?? '';
+      _toController.text = doc.to ?? '';
+      _subjectController.text = doc.subject ?? '';
+      _notesController.text = doc.notes ?? '';
+      _paperArchiveController.text = doc.paperArchive ?? '';
+      _keywordsController.text = (doc.keywords ?? []).join(', ');
       _selectedDate = doc.date;
-
-      _categoryName = doc.categoryName;
+      _categoryName = doc.categoryName ?? '';
     }
   }
 
@@ -93,7 +94,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('إضافة مستند')),
-
       body: BlocBuilder<TypesCubit, TypesState>(
         builder: (context, state) {
           if (state is TypesLoading) {
@@ -101,6 +101,10 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           }
 
           final typesCubit = context.read<TypesCubit>();
+
+          if (typesCubit.categories.isEmpty && typesCubit.paperTypes.isEmpty) {
+            return const Center(child: Text('لا توجد بيانات'));
+          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -110,7 +114,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 children: [
                   // ---------------- الصنف ----------------
                   DropdownButtonFormField<String>(
-                    value: typesCubit.categories.any((item) => item["name"] == _categoryName)
+                    value: typesCubit.categories
+                            .any((item) => item["name"] == _categoryName)
                         ? _categoryName
                         : null,
                     decoration: const InputDecoration(
@@ -120,12 +125,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     items: typesCubit.categories
                         .map(
                           (item) => DropdownMenuItem<String>(
-                        value: item["name"] as String,
-                        child: Text(item["name"] as String),
-                      ),
-                    )
+                            value: item["name"] as String,
+                            child: Text(item["name"] as String),
+                          ),
+                        )
                         .toList(),
-
                     onChanged: (v) => setState(() => _categoryName = v!),
                     validator: (v) => v == null ? 'اختر الصنف' : null,
                   ),
@@ -151,8 +155,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
                   // ---------------- الحفظ الورقي ----------------
                   DropdownButtonFormField<String>(
-                    value: typesCubit.paperTypes.any(
-                            (item) => item["name"] == _paperArchiveController.text)
+                    value: typesCubit.paperTypes.any((item) =>
+                            item["name"] == _paperArchiveController.text)
                         ? _paperArchiveController.text
                         : null,
                     decoration: const InputDecoration(
@@ -162,12 +166,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     items: typesCubit.paperTypes
                         .map(
                           (item) => DropdownMenuItem<String>(
-                        value: item["name"] as String,
-                        child: Text(item["name"] as String),
-                      ),
-                    )
+                            value: item["name"] as String,
+                            child: Text(item["name"] as String),
+                          ),
+                        )
                         .toList(),
-
                     onChanged: (v) {
                       setState(() {
                         _paperArchiveController.text = v!;
@@ -291,14 +294,31 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     );
   }
 
-  void _saveDocument() {
+  void _saveDocument() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! AuthAuthenticated) return;
 
     final keywords = _keywordsController.text
         .split(',')
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
+
+    // 🔥 جلب اسم الفرع من Firestore
+    String? branchName;
+
+    if (authState.branchId != null) {
+      final branchDoc = await FirebaseFirestore.instance
+          .collection('branches')
+          .doc(authState.branchId)
+          .get();
+
+      if (branchDoc.exists) {
+        branchName = branchDoc.data()?['name'];
+      }
+    }
 
     final doc = DocumentModel(
       id: widget.document?.id ?? '',
@@ -308,11 +328,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       from: _fromController.text,
       to: _toController.text,
       subject: _subjectController.text,
-      keywords: keywords,
+      keywords: keywords.isEmpty ? null : keywords,
       notes: _notesController.text,
       paperArchive: _paperArchiveController.text,
-      attachments: _attachments,
-      createdBy: widget.document?.createdBy ?? 'admin',
+      attachments: _attachments.isEmpty ? null : _attachments,
+      createdBy: authState.name ?? authState.user.email,
+      branchId: authState.branchId,
+      branchName: branchName, // ⭐ هنا الحل النهائي
     );
 
     if (widget.document == null) {
@@ -323,6 +345,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     Navigator.pop(context);
   }
+
 }
 
 Widget _attachmentIcon(String type) {

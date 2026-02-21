@@ -6,6 +6,7 @@ import 'bloc/auth/auth_cubit.dart';
 import 'bloc/auth/auth_state.dart';
 import 'bloc/documents/documents_cubit.dart';
 import 'bloc/theme_cubit/theme_cubit.dart';
+import 'bloc/types_cubit/types_cubit.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/documents_screen.dart';
 
@@ -21,32 +22,35 @@ class ArchiveApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
 
-            // 🎨 THEMES
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
+            routes: { '/documents': (_) => const DocumentsScreen(), },
 
-            home: BlocBuilder<AuthCubit, AuthState>(
-              builder: (context, state) {
-                if (state is AuthAuthenticated) {
-                  return BlocProvider(
-                    create: (_) =>
-                    DocumentsCubit()..fetchDocuments(),
-                    child: const DocumentsScreen(),
-                  );
-                }
-
-                if (state is AuthLoading) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                return const LoginPage();
+            home: BlocListener<AuthCubit, AuthState>(
+              listenWhen: (prev, curr) => curr is AuthUnauthenticated,
+              listener: (context, state) {
+                context.read<DocumentsCubit>().reset();
+                context.read<TypesCubit>().reset();
+                // لو عندك UsersCubit global
               },
+              child: BlocBuilder<AuthCubit, AuthState>(
+                builder: (context, state) {
+                  if (state is AuthAuthenticated) {
+                    return const DocumentsScreen();
+                  }
+                  if (state is AuthLoading || state is AuthInitial) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return const LoginPage();
+                },
+              ),
+
             ),
+
+
           );
         },
       ),

@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
 
 import 'bloc/auth/auth_cubit.dart';
 import 'bloc/documents/documents_cubit.dart';
@@ -27,16 +26,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        // ✅ AUTH CUBIT (GLOBAL)
+        // 🔹 AUTH CUBIT (GLOBAL)
         BlocProvider<AuthCubit>(
-          create: (_) => AuthCubit()..checkAuthStatus(),
+          create: (_) => AuthCubit(),
         ),
 
-        // ✅ DOCUMENTS CUBIT (GLOBAL)
+        // 🔹 DOCUMENTS CUBIT (GLOBAL) — بدون fetchDocuments هنا
         BlocProvider<DocumentsCubit>(
-          create: (_) => DocumentsCubit()..fetchDocuments(),
+          create: (_) => DocumentsCubit(),
         ),
-        BlocProvider(create: (_) => TypesCubit()..loadTypes()),
+
+        // 🔹 TYPES CUBIT
+        BlocProvider<TypesCubit>(
+          create: (_) => TypesCubit()
+        ),
       ],
       child: const ArchiveApp(),
     );

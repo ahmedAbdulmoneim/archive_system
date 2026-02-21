@@ -1,6 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 
 import '../models/documents_model.dart';
 
@@ -8,13 +9,12 @@ class PdfExportService {
   static Future<void> exportDocuments(List<DocumentModel> docs) async {
     final pdf = pw.Document();
 
-    // ✅ تحميل خط عربي
     final font = await PdfGoogleFonts.cairoRegular();
     final boldFont = await PdfGoogleFonts.cairoBold();
 
-    final today =
-        DateTime.now().toIso8601String().split('T').first;
+    final today = DateFormat.yMd('ar').format(DateTime.now());
     final logo = await imageFromAssetBundle('assets/logo.jpg');
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4.landscape,
@@ -56,7 +56,6 @@ class PdfExportService {
             ],
           );
         },
-
 
         // ================= FOOTER =================
         footer: (context) {
@@ -103,19 +102,22 @@ class PdfExportService {
               'مرفقات',
             ],
             data: docs.map((d) {
+              final keywords = d.keywords ?? [];
+              final attachments = d.attachments ?? [];
+
               return [
-                d.categoryName,
-                d.number,
-                d.date != null
-                    ? d.date!.toIso8601String().split('T').first
-                    : '',
-                d.from,
-                d.to,
-                d.subject,
-                d.keywords.join(', '),
-                d.notes,
-                d.paperArchive,
-                d.attachments.length.toString(),
+                d.categoryName ?? '',
+                d.number ?? '',
+                d.date == null
+                    ? ''
+                    : DateFormat.yMd('ar').format(d.date!),
+                d.from ?? '',
+                d.to ?? '',
+                d.subject ?? '',
+                keywords.isEmpty ? '' : keywords.join(', '),
+                d.notes ?? '',
+                d.paperArchive ?? '',
+                attachments.length.toString(),
               ];
             }).toList(),
           ),

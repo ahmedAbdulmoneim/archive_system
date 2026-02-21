@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../bloc/types_cubit/types_cubit.dart';
+import '../bloc/auth/auth_cubit.dart';
+import '../bloc/auth/auth_state.dart';
+import '../core/permissions.dart';
 
 class ManageTypesScreen extends StatelessWidget {
   const ManageTypesScreen({super.key});
@@ -8,6 +12,16 @@ class ManageTypesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<TypesCubit>();
+    final authState = context.read<AuthCubit>().state;
+
+    // 🔒 حماية الصلاحيات
+    if (!Permissions.isSuperAdmin(authState)) {
+      return const Scaffold(
+        body: Center(
+          child: Text('غير مصرح لك بالوصول إلى هذه الصفحة'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -37,22 +51,24 @@ class ManageTypesScreen extends StatelessWidget {
                 ...cubit.categories.map(
                       (item) => _typeTile(
                     context,
-                    id: item["id"],
-                    title: item["name"],
+                    id: item["id"] as String,
+                    title: item["name"] as String,
                     isCategory: true,
                   ),
                 ),
 
                 const SizedBox(height: 30),
 
-                _sectionTitle("🗄️ أنواع الحفظ الورقي (${cubit.paperTypes.length})"),
+                _sectionTitle(
+                  "🗄️ أنواع الحفظ الورقي (${cubit.paperTypes.length})",
+                ),
                 const SizedBox(height: 8),
 
                 ...cubit.paperTypes.map(
                       (item) => _typeTile(
                     context,
-                    id: item["id"],
-                    title: item["name"],
+                    id: item["id"] as String,
+                    title: item["name"] as String,
                     isCategory: false,
                   ),
                 ),
@@ -64,7 +80,7 @@ class ManageTypesScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- UI HELPERS ----------------
+  // ================= UI HELPERS =================
 
   Widget _sectionTitle(String text) {
     return Text(
@@ -90,11 +106,13 @@ class ManageTypesScreen extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.blue),
-              onPressed: () => _showEditDialog(context, id, title, isCategory),
+              onPressed: () =>
+                  _showEditDialog(context, id, title, isCategory),
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _showDeleteDialog(context, id, title, isCategory),
+              onPressed: () =>
+                  _showDeleteDialog(context, id, title, isCategory),
             ),
           ],
         ),
@@ -102,7 +120,7 @@ class ManageTypesScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- ADD DIALOG ----------------
+  // ================= ADD DIALOG =================
 
   void _showAddDialog(BuildContext context) {
     final controller = TextEditingController();
@@ -118,11 +136,21 @@ class ManageTypesScreen extends StatelessWidget {
             children: [
               DropdownButtonFormField<bool>(
                 value: true,
+                decoration: const InputDecoration(
+                  labelText: 'نوع',
+                  border: OutlineInputBorder(),
+                ),
                 items: const [
-                  DropdownMenuItem(value: true, child: Text("نوع الصنف")),
-                  DropdownMenuItem(value: false, child: Text("نوع الحفظ الورقي")),
+                  DropdownMenuItem(
+                    value: true,
+                    child: Text("نوع الصنف"),
+                  ),
+                  DropdownMenuItem(
+                    value: false,
+                    child: Text("نوع الحفظ الورقي"),
+                  ),
                 ],
-                onChanged: (v) => isCategory = v!,
+                onChanged: (v) => isCategory = v ?? true,
               ),
               const SizedBox(height: 10),
               TextField(
@@ -158,7 +186,7 @@ class ManageTypesScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- EDIT DIALOG ----------------
+  // ================= EDIT DIALOG =================
 
   void _showEditDialog(
       BuildContext context,
@@ -191,7 +219,6 @@ class ManageTypesScreen extends StatelessWidget {
                 final newName = controller.text.trim();
                 if (newName.isNotEmpty) {
                   final cubit = context.read<TypesCubit>();
-
                   isCategory
                       ? cubit.updateCategory(id, newName)
                       : cubit.updatePaperType(id, newName);
@@ -205,7 +232,7 @@ class ManageTypesScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- DELETE DIALOG ----------------
+  // ================= DELETE DIALOG =================
 
   void _showDeleteDialog(
       BuildContext context,
@@ -225,15 +252,15 @@ class ManageTypesScreen extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
               child: const Text("حذف"),
               onPressed: () {
                 final cubit = context.read<TypesCubit>();
-
                 isCategory
                     ? cubit.deleteCategory(id)
                     : cubit.deletePaperType(id);
-
                 Navigator.pop(context);
               },
             ),

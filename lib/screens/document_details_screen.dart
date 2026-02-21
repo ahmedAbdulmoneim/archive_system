@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
-import '../models/documents_model.dart';
 import 'package:intl/intl.dart';
+import '../models/documents_model.dart';
 
 class DocumentDetailsScreen extends StatelessWidget {
   final DocumentModel document;
 
-  const DocumentDetailsScreen({super.key, required this.document});
+  const DocumentDetailsScreen({
+    super.key,
+    required this.document,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final keywords = document.keywords ?? [];
+    final attachments = document.attachments ?? [];
+
     return Scaffold(
       appBar: AppBar(title: const Text('تفاصيل المستند')),
       body: Padding(
@@ -26,13 +32,13 @@ class DocumentDetailsScreen extends StatelessWidget {
             _detailItem('صادر من', document.from),
             _detailItem('وارد إلى', document.to),
             _detailItem('الموضوع', document.subject),
-
-            // ⭐ تمت الإضافة هنا
             _detailItem('الحفظ الورقي', document.paperArchive),
-
-            _detailItem('الكلمات الدلالية', document.keywords.join(", ")),
+            _detailItem(
+              'الكلمات الدلالية',
+              keywords.isEmpty ? '' : keywords.join(', '),
+            ),
             _detailItem('ملاحظات', document.notes),
-            _detailItem('عدد المرفقات', '${document.attachments.length}'),
+            _detailItem('عدد المرفقات', '${attachments.length}'),
           ],
         ),
       ),

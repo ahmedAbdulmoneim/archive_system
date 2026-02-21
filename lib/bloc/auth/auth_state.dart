@@ -17,15 +17,19 @@ class AuthUnauthenticated extends AuthState {
 
 class AuthAuthenticated extends AuthState {
   final User user;
+  final String role;
+  final bool active;
+  final String? branchId;
+  final String? branchName;
+  final String? name;
 
-  // ✅ OPTIONAL (مش إجباري)
-  final String? role;
-  final bool? active;
-
-  AuthAuthenticated(
+   AuthAuthenticated(
       this.user, {
-        this.role,
-        this.active,
+        required this.role,
+        required this.active,
+        this.branchId,
+        this.branchName,
+        this.name,
       });
 }
 

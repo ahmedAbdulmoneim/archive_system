@@ -8,7 +8,7 @@ import '../core/permissions.dart';
 import '../models/documents_model.dart';
 import '../screens/add_document_screen.dart';
 
-class DocumentsTable extends StatefulWidget {
+class DocumentsTable extends StatelessWidget {
   final List<DocumentModel> documents;
 
   const DocumentsTable({
@@ -16,30 +16,7 @@ class DocumentsTable extends StatefulWidget {
     required this.documents,
   });
 
-  @override
-  State<DocumentsTable> createState() => _DocumentsTableState();
-}
-
-class _DocumentsTableState extends State<DocumentsTable> {
   String safe(String? v) => v == null || v.isEmpty ? '' : v;
-  int? sortColumnIndex;
-  bool isAscending = true;
-
-  void onSort<T>(
-      Comparable<T> Function(DocumentModel d) getField, int columnIndex) {
-    setState(() {
-      sortColumnIndex = columnIndex;
-      isAscending = !isAscending;
-
-      widget.documents.sort((a, b) {
-        final aValue = getField(a);
-        final bValue = getField(b);
-        return isAscending
-            ? Comparable.compare(aValue, bValue)
-            : Comparable.compare(bValue, aValue);
-      });
-    });
-  }
 
   // ============================================================
   void showDocumentDetailsSheet(BuildContext context, DocumentModel doc) {
@@ -51,9 +28,7 @@ class _DocumentsTableState extends State<DocumentsTable> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+        return Padding(
           padding: const EdgeInsets.all(20),
           child: ListView(
             shrinkWrap: true,
@@ -80,11 +55,10 @@ class _DocumentsTableState extends State<DocumentsTable> {
               _detailItem('صادر من', doc.from),
               _detailItem('وارد إلى', doc.to),
               _detailItem('الموضوع', doc.subject),
-              _detailItem('الكلمات الدلالية', doc.keywords.join(', ')),
+              _detailItem('الكلمات الدلالية', doc.keywords?.join(', ')),
               _detailItem('الحفظ الورقي', doc.paperArchive),
               _detailItem('ملاحظات', doc.notes),
-              _detailItem('عدد المرفقات', '${doc.attachments.length}'),
-              const SizedBox(height: 20),
+              _detailItem('عدد المرفقات', '${doc.attachments?.length}'),
             ],
           ),
         );
@@ -96,6 +70,7 @@ class _DocumentsTableState extends State<DocumentsTable> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$title: ',
@@ -112,172 +87,154 @@ class _DocumentsTableState extends State<DocumentsTable> {
   Widget build(BuildContext context) {
     final cubit = context.read<DocumentsCubit>();
     final authState = context.read<AuthCubit>().state;
-    final isAdmin = Permissions.isAdmin(authState);
+    final isAdmin = Permissions.isSuperAdmin(authState);
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 20,
-        sortColumnIndex: sortColumnIndex,
-        sortAscending: isAscending,
-
-        // 🎨 Header styling (Dark Mode Safe)
-        headingRowColor: WidgetStateProperty.all(
-          theme.colorScheme.surfaceContainerHighest,
-        ),
-        headingTextStyle: theme.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
-
-        // Borders
-        dividerThickness: 1,
-        border: TableBorder.all(
-          color: theme.dividerColor,
-          width: 0.8,
-        ),
-
-        // ================= HEADER =================
-        columns: [
-          DataColumn(
-            label: isAdmin
-                ? Checkbox(
-                    value: cubit.selectedCount == widget.documents.length &&
-                        widget.documents.isNotEmpty,
-                    onChanged: (v) {
-                      cubit.toggleSelectAll(v ?? false);
-                    },
-                  )
-                : const SizedBox(),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: DataTable(
+          columnSpacing: 20,
+          headingRowColor: WidgetStateProperty.all(
+            theme.colorScheme.surfaceContainerHighest,
           ),
-          const DataColumn(label: Text('الصنف')),
-          DataColumn(
-            label: const Text('الرقم'),
-            onSort: (columnIndex, _) {
-              onSort((d) => d.number ?? "", columnIndex);
-            },
+          headingTextStyle: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+          dividerThickness: 1,
+          border: TableBorder.all(
+            color: theme.dividerColor,
+            width: 0.8,
           ),
 
-          DataColumn(
-            label: const Text('التاريخ'),
-            onSort: (columnIndex, _) {
-              onSort((d) => d.date ?? DateTime(1900), columnIndex);
-            },
-          ),
-
-          const DataColumn(label: Text('صادر من')),
-          const DataColumn(label: Text('وارد إلى')),
-          const DataColumn(label: Text('الموضوع')),
-          const DataColumn(label: Text('كلمات دلالية')),
-          const DataColumn(label: Text('ملاحظات')),
-          const DataColumn(label: Text('الحفظ الورقي')),
-          const DataColumn(label: Text('مرفقات')),
-          const DataColumn(label: Text('عرض')), // زر التفاصيل
-        ],
-
-        // ================= ROWS =================
-        rows: widget.documents.map((doc) {
-          final isSelected = cubit.isSelected(doc.id);
-          final index = widget.documents.indexOf(doc);
-
-          return DataRow(
-            selected: isSelected,
-
-            // Zebra + Hover + Selected
-            color: WidgetStateProperty.resolveWith<Color?>(
-              (states) {
-                if (states.contains(WidgetState.selected)) {
-                  return theme.colorScheme.primary.withOpacity(0.12);
-                }
-                if (states.contains(WidgetState.hovered)) {
-                  return theme.colorScheme.primary.withOpacity(0.06);
-                }
-                return index.isEven
-                    ? theme.colorScheme.surface
-                    : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4);
-              },
+          // ================= HEADER =================
+          columns: [
+            DataColumn(
+              label: isAdmin
+                  ? Checkbox(
+                value: cubit.selectedCount == documents.length &&
+                    documents.isNotEmpty,
+                onChanged: (v) {
+                  cubit.toggleSelectAll(v ?? false);
+                },
+              )
+                  : const SizedBox(),
             ),
+            const DataColumn(label: Text('الصنف')),
+            const DataColumn(label: Text('الرقم')),
+            const DataColumn(label: Text('التاريخ')),
+            const DataColumn(label: Text('صادر من')),
+            const DataColumn(label: Text('وارد إلى')),
+            const DataColumn(label: Text('الموضوع')),
+            const DataColumn(label: Text('كلمات دلالية')),
+            const DataColumn(label: Text('ملاحظات')),
+            const DataColumn(label: Text('الحفظ الورقي')),
+            const DataColumn(label: Text('مرفقات')),
+            const DataColumn(label: Text('أضيف بواسطة')),
+            const DataColumn(label: Text('الفرع')),
+            const DataColumn(label: Text('عرض')),
+          ],
 
-            // الضغط على الصف
-            onSelectChanged: (_) {
-              if (isAdmin) {
-                // فتح شاشة التعديل
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BlocProvider.value(
-                      value: cubit,
-                      child: AddDocumentScreen(document: doc),
+          // ================= ROWS =================
+          rows: documents.map((doc) {
+            final isSelected = cubit.isSelected(doc.id);
+            final index = documents.indexOf(doc);
+
+            return DataRow(
+              selected: isSelected,
+              color: WidgetStateProperty.resolveWith<Color?>(
+                    (states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return theme.colorScheme.primary.withOpacity(0.12);
+                  }
+                  if (states.contains(WidgetState.hovered)) {
+                    return theme.colorScheme.primary.withOpacity(0.06);
+                  }
+                  return index.isEven
+                      ? theme.colorScheme.surface
+                      : theme.colorScheme.surfaceContainerHighest
+                      .withOpacity(0.4);
+                },
+              ),
+              onSelectChanged: (_) {
+                if (isAdmin) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider.value(
+                        value: cubit,
+                        child: AddDocumentScreen(document: doc),
+                      ),
                     ),
+                  );
+                } else {
+                  showDocumentDetailsSheet(context, doc);
+                }
+              },
+              cells: [
+                DataCell(
+                  isAdmin
+                      ? Checkbox(
+                    value: isSelected,
+                    onChanged: (_) =>
+                        cubit.toggleSelection(doc.id),
+                  )
+                      : const SizedBox(),
+                ),
+                DataCell(Text(safe(doc.categoryName))),
+                DataCell(Text(safe(doc.number))),
+                DataCell(
+                  Text(
+                    doc.date == null
+                        ? ''
+                        : DateFormat.yMd('ar').format(doc.date!),
                   ),
-                );
-              } else {
-                // فتح التفاصيل فقط
-                showDocumentDetailsSheet(context, doc);
-              }
-            },
+                ),
+                DataCell(Text(safe(doc.from))),
+                DataCell(Text(safe(doc.to))),
+                DataCell(Text(safe(doc.subject))),
+                DataCell(
+                  Text(
+                    doc.keywords!.join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    safe(doc.notes),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                DataCell(Text(safe(doc.paperArchive))),
+                DataCell(
+                  Row(
+                    children: [
+                      const Icon(Icons.attach_file, size: 16),
+                      const SizedBox(width: 4),
+                      Text('${doc.attachments?.length}'),
+                    ],
+                  ),
+                ),
+                DataCell(Text(doc.createdBy ?? '—')),
+                DataCell(Text(doc.branchName ?? doc.branchId ?? '—')),
 
-            cells: [
-              // Checkbox للأدمن فقط
-              DataCell(
-                isAdmin
-                    ? Checkbox(
-                        value: isSelected,
-                        onChanged: (_) => cubit.toggleSelection(doc.id),
-                      )
-                    : const SizedBox(),
-              ),
 
-              DataCell(Text(safe(doc.categoryName))),
-              DataCell(Text(safe(doc.number))),
-              DataCell(
-                Text(
-                  doc.date == null
-                      ? ''
-                      : DateFormat.yMd('ar').format(doc.date!),
+                DataCell(
+                  IconButton(
+                    icon: const Icon(Icons.visibility),
+                    tooltip: 'عرض التفاصيل',
+                    onPressed: () {
+                      showDocumentDetailsSheet(context, doc);
+                    },
+                  ),
                 ),
-              ),
-              DataCell(Text(safe(doc.from))),
-              DataCell(Text(safe(doc.to))),
-              DataCell(Text(safe(doc.subject))),
-              DataCell(
-                Text(
-                  doc.keywords.join(', '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              DataCell(
-                Text(
-                  safe(doc.notes),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              DataCell(Text(safe(doc.paperArchive))),
-              DataCell(
-                Row(
-                  children: [
-                    const Icon(Icons.attach_file, size: 16),
-                    const SizedBox(width: 4),
-                    Text('${doc.attachments.length}'),
-                  ],
-                ),
-              ),
-
-              // زر عرض التفاصيل
-              DataCell(
-                IconButton(
-                  icon: const Icon(Icons.visibility),
-                  tooltip: 'عرض التفاصيل',
-                  onPressed: () {
-                    showDocumentDetailsSheet(context, doc);
-                  },
-                ),
-              ),
-            ],
-          );
-        }).toList(),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:excel/excel.dart';
+import 'package:intl/intl.dart';
 
 import '../models/documents_model.dart';
 
@@ -8,7 +9,6 @@ class ExcelExportService {
   static void exportDocuments(List<DocumentModel> docs) {
     final excel = Excel.createExcel();
 
-    // استخدم الشيت الافتراضي
     final sheet = excel.sheets[excel.getDefaultSheet()]!;
 
     // 🟩 HEADER
@@ -27,21 +27,26 @@ class ExcelExportService {
 
     // 🟦 DATA
     for (final d in docs) {
+      final keywords = d.keywords ?? [];
+      final attachments = d.attachments ?? [];
+
       sheet.appendRow([
-        TextCellValue(d.categoryName),
-        TextCellValue(d.number),
+        TextCellValue(d.categoryName ?? ''),
+        TextCellValue(d.number ?? ''),
         TextCellValue(
-          d.date != null
-              ? d.date!.toIso8601String().split('T').first
-              : '',
+          d.date == null
+              ? ''
+              : DateFormat.yMd('ar').format(d.date!),
         ),
-        TextCellValue(d.from),
-        TextCellValue(d.to),
-        TextCellValue(d.subject),
-        TextCellValue(d.keywords.join(', ')),
-        TextCellValue(d.notes),
-        TextCellValue(d.paperArchive),
-        TextCellValue(d.attachments.length.toString()),
+        TextCellValue(d.from ?? ''),
+        TextCellValue(d.to ?? ''),
+        TextCellValue(d.subject ?? ''),
+        TextCellValue(
+          keywords.isEmpty ? '' : keywords.join(', '),
+        ),
+        TextCellValue(d.notes ?? ''),
+        TextCellValue(d.paperArchive ?? ''),
+        TextCellValue(attachments.length.toString()),
       ]);
     }
 
