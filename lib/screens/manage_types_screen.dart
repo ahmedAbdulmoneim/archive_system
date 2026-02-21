@@ -6,9 +6,20 @@ import '../bloc/auth/auth_cubit.dart';
 import '../bloc/auth/auth_state.dart';
 import '../core/permissions.dart';
 
-class ManageTypesScreen extends StatelessWidget {
+class ManageTypesScreen extends StatefulWidget {
   const ManageTypesScreen({super.key});
 
+  @override
+  State<ManageTypesScreen> createState() => _ManageTypesScreenState();
+
+}
+
+class _ManageTypesScreenState extends State<ManageTypesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<TypesCubit>().loadTypes();
+  }
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<TypesCubit>();
@@ -81,7 +92,6 @@ class ManageTypesScreen extends StatelessWidget {
   }
 
   // ================= UI HELPERS =================
-
   Widget _sectionTitle(String text) {
     return Text(
       text,
@@ -121,7 +131,6 @@ class ManageTypesScreen extends StatelessWidget {
   }
 
   // ================= ADD DIALOG =================
-
   void _showAddDialog(BuildContext context) {
     final controller = TextEditingController();
     bool isCategory = true;
@@ -187,7 +196,6 @@ class ManageTypesScreen extends StatelessWidget {
   }
 
   // ================= EDIT DIALOG =================
-
   void _showEditDialog(
       BuildContext context,
       String id,
@@ -233,7 +241,6 @@ class ManageTypesScreen extends StatelessWidget {
   }
 
   // ================= DELETE DIALOG =================
-
   void _showDeleteDialog(
       BuildContext context,
       String id,
