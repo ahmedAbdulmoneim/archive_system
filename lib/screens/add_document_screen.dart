@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../bloc/auth/auth_cubit.dart';
@@ -14,10 +15,7 @@ import '../models/documents_model.dart';
 class AddDocumentScreen extends StatefulWidget {
   final DocumentModel? document;
 
-  const AddDocumentScreen({
-    super.key,
-    this.document,
-  });
+  const AddDocumentScreen({super.key, this.document});
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
@@ -38,26 +36,107 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String _categoryName = '';
   final List<AttachmentModel> _attachments = [];
 
+  // ===================== ATTACHMENTS =====================
+
+  void _showAttachmentOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('التقاط صورة بالكاميرا'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFromCamera();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text('اختيار صورة من الجهاز'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImageFromGallery();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file),
+              title: const Text('اختيار ملف من الجهاز'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAttachment();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFromCamera() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _attachments.add(
+        AttachmentModel(
+          name: 'camera_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          type: 'jpg',
+          localPath: picked.path,
+        ),
+      );
+    });
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _attachments.add(
+        AttachmentModel(
+          name: 'gallery_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          type: 'jpg',
+          localPath: picked.path,
+        ),
+      );
+    });
+  }
+
   Future<void> _pickAttachment() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       withData: false,
     );
-
     if (result == null) return;
 
-    for (final file in result.files) {
-      _attachments.add(
-        AttachmentModel(
-          name: file.name,
-          type: file.extension ?? 'file',
-          localPath: file.path,
-        ),
-      );
-    }
-
-    setState(() {});
+    setState(() {
+      for (final file in result.files) {
+        _attachments.add(
+          AttachmentModel(
+            name: file.name,
+            type: file.extension ?? 'file',
+            localPath: file.path,
+          ),
+        );
+      }
+    });
   }
+
+  // ===================== INIT =====================
 
   @override
   void initState() {
@@ -66,7 +145,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     if (widget.document != null) {
       final doc = widget.document!;
-
       _numberController.text = doc.number ?? '';
       _fromController.text = doc.from ?? '';
       _toController.text = doc.to ?? '';
@@ -76,8 +154,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _keywordsController.text = (doc.keywords ?? []).join(', ');
       _selectedDate = doc.date;
       _categoryName = doc.categoryName ?? '';
+      _attachments.addAll(doc.attachments ?? []);
     } else {
-      // ⭐ التاريخ الافتراضي = اليوم
       _selectedDate = DateTime.now();
     }
   }
@@ -94,10 +172,14 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     super.dispose();
   }
 
+  // ===================== UI =====================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('إضافة مستند')),
+      appBar: AppBar(
+        title: Text(widget.document == null ? 'إضافة مستند' : 'تعديل مستند'),
+      ),
       body: BlocBuilder<TypesCubit, TypesState>(
         builder: (context, state) {
           if (state is TypesLoading) {
@@ -112,10 +194,10 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
               key: _formKey,
               child: Column(
                 children: [
-                  // ---------------- الصنف ----------------
+                  // الصنف
                   DropdownButtonFormField<String>(
                     value: typesCubit.categories
-                        .any((item) => item["name"] == _categoryName)
+                        .any((e) => e['name'] == _categoryName)
                         ? _categoryName
                         : null,
                     decoration: const InputDecoration(
@@ -123,16 +205,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: typesCubit.categories
-                        .map(
-                          (item) => DropdownMenuItem<String>(
-                        value: item["name"] as String,
-                        child: Text(item["name"] as String),
-                      ),
-                    )
+                        .map((e) => DropdownMenuItem<String>(
+                      value: e['name'],
+                      child: Text(e['name']),
+                    ))
                         .toList(),
                     onChanged: (v) => setState(() => _categoryName = v ?? ''),
                   ),
-
                   const SizedBox(height: 12),
 
                   _textField('رقم الوثيقة (اختياري)', _numberController),
@@ -140,22 +219,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   _textField('صادر من (اختياري)', _fromController),
                   _textField('وارد إلى (اختياري)', _toController),
                   _textField('الموضوع (اختياري)', _subjectController),
+                  _textField('كلمات دلالية (اختياري)', _keywordsController),
+                  _textField('ملاحظات (اختياري)', _notesController, maxLines: 3),
 
-                  _textField(
-                    'كلمات دلالية (اختياري)',
-                    _keywordsController,
-                  ),
-
-                  _textField(
-                    'ملاحظات (اختياري)',
-                    _notesController,
-                    maxLines: 3,
-                  ),
-
-                  // ---------------- الحفظ الورقي ----------------
+                  // 🆕 نوع الحفظ الورقي
                   DropdownButtonFormField<String>(
-                    value: typesCubit.paperTypes.any((item) =>
-                    item["name"] == _paperArchiveController.text)
+                    value: typesCubit.paperTypes.any(
+                            (e) => e['name'] == _paperArchiveController.text)
                         ? _paperArchiveController.text
                         : null,
                     decoration: const InputDecoration(
@@ -163,22 +233,16 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: typesCubit.paperTypes
-                        .map(
-                          (item) => DropdownMenuItem<String>(
-                        value: item["name"] as String,
-                        child: Text(item["name"] as String),
-                      ),
-                    )
+                        .map((e) => DropdownMenuItem<String>(
+                      value: e['name'],
+                      child: Text(e['name']),
+                    ))
                         .toList(),
-                    onChanged: (v) {
-                      setState(() {
-                        _paperArchiveController.text = v ?? '';
-                      });
-                    },
+                    onChanged: (v) =>
+                        setState(() => _paperArchiveController.text = v ?? ''),
                   ),
 
                   const SizedBox(height: 16),
-
                   _attachmentsList(),
 
                   Align(
@@ -186,12 +250,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.attach_file),
                       label: const Text('إضافة مرفق'),
-                      onPressed: _pickAttachment,
+                      onPressed: () => _showAttachmentOptions(context),
                     ),
                   ),
 
                   const SizedBox(height: 24),
-
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -235,9 +298,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             firstDate: DateTime(2000),
             lastDate: DateTime(2100),
           );
-          if (picked != null) {
-            setState(() => _selectedDate = picked);
-          }
+          if (picked != null) setState(() => _selectedDate = picked);
         },
         child: InputDecorator(
           decoration: const InputDecoration(
@@ -245,9 +306,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             border: OutlineInputBorder(),
           ),
           child: Text(
-            _selectedDate == null
-                ? 'اختر التاريخ'
-                : DateFormat.yMd('ar').format(_selectedDate!),
+            _selectedDate != null
+                ?DateFormat('yyyy/MM/dd').format(_selectedDate!)
+                : '',
           ),
         ),
       ),
@@ -258,10 +319,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     if (_attachments.isEmpty) {
       return const Padding(
         padding: EdgeInsets.only(bottom: 12),
-        child: Text(
-          'لا توجد مرفقات',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text('لا توجد مرفقات', style: TextStyle(color: Colors.grey)),
       );
     }
 
@@ -271,20 +329,20 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       itemCount: _attachments.length,
       itemBuilder: (context, index) {
         final att = _attachments[index];
+        final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+            .contains(att.type.toLowerCase());
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: _attachmentIcon(att.type),
+            leading: isImage && att.localPath != null
+                ? Image.network(att.localPath!, width: 40, height: 40)
+                : const Icon(Icons.attach_file),
             title: Text(att.name, overflow: TextOverflow.ellipsis),
-            subtitle: Text(att.type),
+            subtitle: Text(att.type.toUpperCase()),
             trailing: IconButton(
               icon: const Icon(Icons.close, color: Colors.red),
-              onPressed: () {
-                setState(() {
-                  _attachments.removeAt(index);
-                });
-              },
+              onPressed: () =>
+                  setState(() => _attachments.removeAt(index)),
             ),
           ),
         );
@@ -292,36 +350,21 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     );
   }
 
+  // ===================== SAVE =====================
+
   void _saveDocument() async {
-    // ⭐ التاريخ فقط إلزامي
-    if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("يجب اختيار التاريخ")),
-      );
-      return;
-    }
+    if (_selectedDate == null) return;
 
     final authState = context.read<AuthCubit>().state;
     if (authState is! AuthAuthenticated) return;
 
-    final keywords = _keywordsController.text
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    // 🔥 جلب اسم الفرع من Firestore
     String? branchName;
-
     if (authState.branchId != null) {
       final branchDoc = await FirebaseFirestore.instance
           .collection('branches')
           .doc(authState.branchId)
           .get();
-
-      if (branchDoc.exists) {
-        branchName = branchDoc.data()?['name'];
-      }
+      branchName = branchDoc.data()?['name'];
     }
 
     final doc = DocumentModel(
@@ -331,8 +374,15 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       date: _selectedDate,
       from: _fromController.text.isEmpty ? null : _fromController.text,
       to: _toController.text.isEmpty ? null : _toController.text,
-      subject: _subjectController.text.isEmpty ? null : _subjectController.text,
-      keywords: keywords.isEmpty ? null : keywords,
+      subject:
+      _subjectController.text.isEmpty ? null : _subjectController.text,
+      keywords: _keywordsController.text.isEmpty
+          ? null
+          : _keywordsController.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
       notes: _notesController.text.isEmpty ? null : _notesController.text,
       paperArchive: _paperArchiveController.text.isEmpty
           ? null
@@ -349,22 +399,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       context.read<DocumentsCubit>().updateDocument(doc);
     }
 
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
-}
-
-Widget _attachmentIcon(String type) {
-  final t = type.toLowerCase();
-
-  if (t.contains('pdf')) {
-    return const Icon(Icons.picture_as_pdf, color: Colors.red);
-  }
-  if (t.contains('jpg') || t.contains('png') || t.contains('jpeg')) {
-    return const Icon(Icons.image, color: Colors.blue);
-  }
-  if (t.contains('doc')) {
-    return const Icon(Icons.description, color: Colors.indigo);
-  }
-
-  return const Icon(Icons.attach_file);
 }

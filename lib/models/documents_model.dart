@@ -44,7 +44,7 @@ class DocumentModel {
       id: id,
       categoryName: map['categoryName'],
       number: map['number'],
-      date: (map['date'] as Timestamp?)?.toDate(),
+      date: map['date'] is Timestamp ? (map['date'] as Timestamp).toDate() : null,
       from: map['from'],
       to: map['to'],
       subject: map['subject'],

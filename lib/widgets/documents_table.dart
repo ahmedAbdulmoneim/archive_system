@@ -55,7 +55,7 @@ class DocumentsTable extends StatelessWidget {
                 'التاريخ',
                 doc.date == null
                     ? ''
-                    : DateFormat.yMd('ar').format(doc.date!),
+                    : DateFormat('yyyy/MM/dd').format(doc.date!),
               ),
               _detailItem('صادر من', doc.from),
               _detailItem('وارد إلى', doc.to),
@@ -118,12 +118,12 @@ class DocumentsTable extends StatelessWidget {
             DataColumn(
               label: isAdmin
                   ? Checkbox(
-                value: cubit.selectedCount == documents.length &&
-                    documents.isNotEmpty,
-                onChanged: (v) {
-                  cubit.toggleSelectAll(v ?? false);
-                },
-              )
+                      value: cubit.selectedCount == documents.length &&
+                          documents.isNotEmpty,
+                      onChanged: (v) {
+                        cubit.toggleSelectAll(v ?? false);
+                      },
+                    )
                   : const SizedBox(),
             ),
             const DataColumn(label: Text('الصنف')),
@@ -149,7 +149,7 @@ class DocumentsTable extends StatelessWidget {
             return DataRow(
               selected: isSelected,
               color: WidgetStateProperty.resolveWith<Color?>(
-                    (states) {
+                (states) {
                   if (states.contains(WidgetState.selected)) {
                     return theme.colorScheme.primary.withOpacity(0.12);
                   }
@@ -159,7 +159,7 @@ class DocumentsTable extends StatelessWidget {
                   return index.isEven
                       ? theme.colorScheme.surface
                       : theme.colorScheme.surfaceContainerHighest
-                      .withOpacity(0.4);
+                          .withOpacity(0.4);
                 },
               ),
               onSelectChanged: (_) {
@@ -181,9 +181,9 @@ class DocumentsTable extends StatelessWidget {
                 DataCell(
                   isAdmin
                       ? Checkbox(
-                    value: isSelected,
-                    onChanged: (_) => cubit.toggleSelection(doc.id),
-                  )
+                          value: isSelected,
+                          onChanged: (_) => cubit.toggleSelection(doc.id),
+                        )
                       : const SizedBox(),
                 ),
                 DataCell(Text(safe(doc.categoryName))),
@@ -192,7 +192,7 @@ class DocumentsTable extends StatelessWidget {
                   Text(
                     doc.date == null
                         ? ''
-                        : DateFormat.yMd('ar').format(doc.date!),
+                        : DateFormat('yyyy/MM/dd').format(doc.date!),
                   ),
                 ),
                 DataCell(Text(safe(doc.from))),
@@ -200,9 +200,7 @@ class DocumentsTable extends StatelessWidget {
                 DataCell(Text(safe(doc.subject))),
                 DataCell(
                   Text(
-                    doc.keywords == null
-                        ? ''
-                        : doc.keywords!.join(', '),
+                    doc.keywords == null ? '' : doc.keywords!.join(', '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
